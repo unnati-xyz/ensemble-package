@@ -6,6 +6,7 @@ from sklearn.preprocessing import Imputer, PolynomialFeatures
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cross_validation import KFold
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.cross_validation import StratifiedKFold
 
 encode = preprocessing.LabelEncoder()
 Data = pd.read_csv('/home/prajwal/Desktop/bank-additional/bank-additional-full.csv',delimiter=';',header=0)
@@ -38,7 +39,7 @@ variance_L1=list()
 variance_DT=list()
 variance_RF=list()
 
-kf = KFold(Data.shape[0], n_folds=5,shuffle=True)
+kf = StratifiedKFold(Data['y'], n_folds=5,shuffle=True)
 
 for train_index, cross_val_index in kf:
     train, cross_val = Data.iloc[train_index], Data.iloc[cross_val_index]
