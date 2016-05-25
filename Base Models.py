@@ -1,0 +1,74 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn import datasets, linear_model, preprocessing
+from sklearn.preprocessing import Imputer, PolynomialFeatures
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.cross_validation import KFold
+
+encode = preprocessing.LabelEncoder()
+Data = pd.read_csv('/home/prajwal/Desktop/bank-additional/bank-additional-full.csv',delimiter=';',header=0)
+#print (Data)
+Data.job = encode.fit_transform(Data.job)
+Data.marital = encode.fit_transform(Data.marital)
+Data.education = encode.fit_transform(Data.education)
+Data.default = encode.fit_transform(Data.default)
+Data.housing = encode.fit_transform(Data.housing)
+Data.loan = encode.fit_transform(Data.loan)
+Data.contact = encode.fit_transform(Data.contact)
+Data.month = encode.fit_transform(Data.month)
+Data.day_of_week = encode.fit_transform(Data.day_of_week)
+Data.poutcome = encode.fit_transform(Data.poutcome)
+Data.y = encode.fit_transform(Data.y)
+
+mean_LinearRegression=list()
+avg_LinearRegeression=0
+mean_L2=list()
+avg_L2=0
+mean_L1=list()
+avg_L1=0
+
+variance_L2=list()
+variance_L1=list()
+
+kf = KFold(Data.shape[0], n_folds=5,shuffle=True)
+
+for train_index, cross_val_index in kf:
+    train, cross_val = Data.iloc[train_index], Data.iloc[cross_val_index]
+    train_Y = train['y']
+    train_X = train.drop(['y'], axis=1)
+    cross_val_Y = cross_val['y']
+    cross_val_X = cross_val.drop(['y'], axis=1)
+    predict = list()
+    train_X = preprocessing.StandardScaler().fit_transform(train_X)
+    cross_val_X = preprocessing.StandardScaler().fit_transform(cross_val_X)
+
+    # Linear Regression
+    regr = linear_model.LinearRegression()
+    regr.fit(train_X, train_Y)
+    predict = regr.predict(cross_val_X)
+    predict[(predict >= 0.5)] = 1
+    predict[(predict < 0.5)] = 0
+    mean_LinearRegression.append((np.mean((predict - cross_val_Y) ** 2)))
+
+    # Logistic Regression (Default=L2)
+    regr = linear_model.LogisticRegression(penalty='l2')
+    regr.fit(train_X, train_Y)
+    mean_L2.append((np.mean((regr.predict(cross_val_X) - cross_val_Y) ** 2)))
+    # Explained variance score: 1 is perfect prediction
+    variance_L2.append(regr.score(cross_val_X, cross_val_Y))
+
+    # Logistic Regression-L1
+    regr = linear_model.LogisticRegression(penalty='l1')
+    regr.fit(train_X, train_Y)
+    mean_L1.append(np.mean((regr.predict(cross_val_X) - cross_val_Y) ** 2))
+    # Explained variance score: 1 is perfect prediction
+    variance_L1.append(regr.score(cross_val_X, cross_val_Y))
+
+avg_LinearRegression=np.mean(mean_LinearRegression)
+avg_L2=np.mean(mean_L2)
+avg_L1=np.mean(mean_L1)
+
+print (' Mean Error (Linear Regression)\n',avg_LinearRegression)
+print (' Mean Error (Logistic Regression - L2)\n',avg_L2)
+print (' Mean Error (Logistic Regression - L1)\n',avg_L1)
