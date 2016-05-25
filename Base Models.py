@@ -5,6 +5,7 @@ from sklearn import datasets, linear_model, preprocessing
 from sklearn.preprocessing import Imputer, PolynomialFeatures
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cross_validation import KFold
+from sklearn.ensemble import RandomForestClassifier
 
 encode = preprocessing.LabelEncoder()
 Data = pd.read_csv('/home/prajwal/Desktop/bank-additional/bank-additional-full.csv',delimiter=';',header=0)
@@ -27,9 +28,15 @@ mean_L2=list()
 avg_L2=0
 mean_L1=list()
 avg_L1=0
+mean_DT=list()
+avg_DT=0
+mean_RF=list()
+avg_RF=0
 
 variance_L2=list()
 variance_L1=list()
+variance_DT=list()
+variance_RF=list()
 
 kf = KFold(Data.shape[0], n_folds=5,shuffle=True)
 
@@ -40,6 +47,24 @@ for train_index, cross_val_index in kf:
     cross_val_Y = cross_val['y']
     cross_val_X = cross_val.drop(['y'], axis=1)
     predict = list()
+
+    # Decision Tree
+    model = DecisionTreeClassifier()
+    model.fit(train_X, train_Y)
+    # The mean square error
+    mean_DT.append(np.mean((model.predict(cross_val_X) - cross_val_Y) ** 2))
+    # Explained variance score: 1 is perfect prediction
+    variance_DT.append(model.score(cross_val_X, cross_val_Y))
+
+    # Random Forest (Deafult=10 Trees)
+    model = RandomForestClassifier()
+    model.fit(train_X, train_Y)
+    # The mean square error
+    mean_RF.append(np.mean((model.predict(cross_val_X) - cross_val_Y) ** 2))
+    # Explained variance score: 1 is perfect prediction
+    variance_RF.append(model.score(cross_val_X, cross_val_Y))
+
+    #Scaling the data
     train_X = preprocessing.StandardScaler().fit_transform(train_X)
     cross_val_X = preprocessing.StandardScaler().fit_transform(cross_val_X)
 
@@ -68,7 +93,11 @@ for train_index, cross_val_index in kf:
 avg_LinearRegression=np.mean(mean_LinearRegression)
 avg_L2=np.mean(mean_L2)
 avg_L1=np.mean(mean_L1)
+avg_DT=np.mean(mean_DT)
+avg_RF=np.mean(mean_RF)
 
 print (' Mean Error (Linear Regression)\n',avg_LinearRegression)
 print (' Mean Error (Logistic Regression - L2)\n',avg_L2)
 print (' Mean Error (Logistic Regression - L1)\n',avg_L1)
+print (' Mean Error (Decision Tree)\n',avg_DT)
+print (' Mean Error (Random Forest)\n',avg_RF)
