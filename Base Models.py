@@ -10,6 +10,7 @@ from sklearn.cross_validation import StratifiedKFold
 from keras.layers import Dense, Activation
 from keras.models import Sequential
 from sklearn.ensemble import GradientBoostingClassifier
+import xgboost as xgb
 
 encode = preprocessing.LabelEncoder()
 Data = pd.read_csv('/home/prajwal/Desktop/bank-additional/bank-additional-full.csv',delimiter=';',header=0)
@@ -40,6 +41,10 @@ mean_MLP=list()
 avg_MLP=0
 mean_GB=list()
 avg_GB=0
+mean_ET=list()
+avg_ET=0
+mean_XGB=list()
+avg_XGB=0
 
 variance_L2=list()
 variance_L1=list()
@@ -57,6 +62,31 @@ for train_index, cross_val_index in kf:
     cross_val_Y = cross_val['y']
     cross_val_X = cross_val.drop(['y'], axis=1)
     predict = list()
+    
+    #Gradient Boosting (XGBoost)
+    param = {}
+    #Setting Parameters for the Booster
+    param['booster'] = 'gbtree'
+    param['objective'] = 'binary:logistic'
+    param["eval_metric"] = "error"
+    param['eta'] = 0.3
+    param['gamma'] = 0
+    param['max_depth'] = 6
+    param['min_child_weight']=1
+    param['max_delta_step'] = 0
+    param['subsample']= 1
+    param['colsample_bytree']=1
+    param['silent'] = 1
+    param['seed'] = 0
+    param['base_score'] = 0.5
+    dtrain = xgb.DMatrix(train_X,label=train_Y)
+    dcross_val = xgb.DMatrix(cross_val_X,label=cross_val_Y)
+    XGB = xgb.train(param, dtrain)
+    predict=XGB.predict(dcross_val)
+    predict[(predict>=0.5)]=1
+    predict[(predict<0.5)]=0
+    #The mean square error (Cross Validation Data)
+    mean_XGB.append((np.mean((predict - cross_val_Y) ** 2)))
     
     #Gradient Boosting
     model = GradientBoostingClassifier()
@@ -130,6 +160,8 @@ avg_DT=np.mean(mean_DT)
 avg_RF=np.mean(mean_RF)
 avg_MLP=np.mean(mean_MLP)
 avg_GB=np.mean(mean_GB)
+avg_ET=np.mean(mean_ET)
+avg_XGB=np.mean(mean_XGB)
 
 print (' Mean Error (Linear Regression)\n',avg_LinearRegression)
 print (' Mean Error (Logistic Regression - L2)\n',avg_L2)
@@ -137,4 +169,5 @@ print (' Mean Error (Logistic Regression - L1)\n',avg_L1)
 print (' Mean Error (Decision Tree)\n',avg_DT)
 print (' Mean Error (Random Forest)\n',avg_RF)
 print (' Mean Error (Multi Layer Perceptron)\n',avg_MLP)
-print (' Mean Error (Gradient Boosting)\n',avg_GB)
+print (' Mean Error (Gradient Boosting - Sklearn)\n',avg_GB)
+print (' Mean Error (Gradient Boosting - XGBoost)\n',avg_XGB)
