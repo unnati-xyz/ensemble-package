@@ -42,13 +42,6 @@ for column in names:
 #Data.poutcome = encode.fit_transform(Data.poutcome)
 #Data.y = encode.fit_transform(Data.y)
 
-#predict_XGB
-#predict_multi_layer_perceptron=0
-#predict_decision_tree=0
-#predict_random_forest=0
-#predict_linear_regression=0
-#predict_logistic_regression_L2=0
-#predict_logistic_regression_L1=0
 
 def gradient_boosting(train_X,train_Y,cross_val_X,cross_val_Y):
     #Gradient Boosting (XGBoost)
@@ -77,7 +70,7 @@ def gradient_boosting(train_X,train_Y,cross_val_X,cross_val_Y):
     predict=gradient_boosting.predict(dcross_val)
     #The AUC error (Cross Validation Data)
     auc=roc_auc_score(cross_val_Y,predict)
-    return {'auc':auc, 'predict':predict}
+    return [auc, predict]
 
 def multi_layer_perceptron(train_X,train_Y,cross_val_X,cross_val_Y):
     #Multi Layer Perceptron
@@ -89,7 +82,7 @@ def multi_layer_perceptron(train_X,train_Y,cross_val_X,cross_val_Y):
     predict=multi_layer_perceptron.predict_on_batch(cross_val_X)
     #The AUC (Cross Validation Data)
     auc=roc_auc_score(cross_val_Y,predict)
-    return {'auc':auc, 'predict':predict}
+    return [auc, predict]
 
 def decision_tree(train_X,train_Y,cross_val_X,cross_val_Y):
     #Decision Tree
@@ -98,7 +91,7 @@ def decision_tree(train_X,train_Y,cross_val_X,cross_val_Y):
     #The AUC (Cross Validation Data)
     predict=decision_tree.predict_proba(cross_val_X)[:,1]
     auc=roc_auc_score(cross_val_Y,predict)
-    return {'auc':auc, 'predict':predict}
+    return [auc, predict]
 
 def random_forest(train_X,train_Y,cross_val_X,cross_val_Y):
     #Random Forest (Deafult=10 Trees)
@@ -107,7 +100,7 @@ def random_forest(train_X,train_Y,cross_val_X,cross_val_Y):
     #The AUC (Cross Validation Data)
     predict=random_forest.predict_proba(cross_val_X)[:,1]
     auc=roc_auc_score(cross_val_Y,predict)
-    return {'auc':auc, 'predict':predict}
+    return [auc, predict]
 
 def linear_regression(train_X,train_Y,cross_val_X,cross_val_Y):
     #Linear Regression
@@ -119,7 +112,7 @@ def linear_regression(train_X,train_Y,cross_val_X,cross_val_Y):
     #predict[(predict<0.5)]=0
     #The AUC (Cross Validation Data)
     auc=roc_auc_score(cross_val_Y,predict)
-    return {'auc':auc, 'predict':predict}
+    return [auc, predict]
 
 def logistic_regression(train_X,train_Y,cross_val_X,cross_val_Y,penalty):
     #Logistic Regression (Default=l2)
@@ -134,7 +127,7 @@ def logistic_regression(train_X,train_Y,cross_val_X,cross_val_Y,penalty):
         #The AUC (Cross Validation Data)
         auc=roc_auc_score(cross_val_Y,predict)
         
-    return {'auc':auc, 'predict':predict}
+    return [auc, predict]
 
 metric_linear_regression=list()
 avg_linear_regeression=0
@@ -170,23 +163,26 @@ for train_index, cross_val_index in kf:
   
     #Gradient Boosting (XGBoost)
     #The AUC error (Cross Validation Data)
-    metric_XGB.append(gradient_boosting(train_X,train_Y,cross_val_X,cross_val_Y)['auc'])
-    
+    [auc,predict_XGB]=gradient_boosting(train_X,train_Y,cross_val_X,cross_val_Y)
+    metric_XGB.append(auc)
 
     
     #Multi Layer Perceptron
     #The AUC (Cross Validation Data)
-    metric_multi_layer_perceptron.append(multi_layer_perceptron(train_X,train_Y,cross_val_X,cross_val_Y)['auc'])
+    [auc,predict_multi_layer_perceptron]=(multi_layer_perceptron(train_X,train_Y,cross_val_X,cross_val_Y))
+    metric_multi_layer_perceptron.append(auc)
 
 
     #Decision Tree)
     #The AUC (Cross Validation Data)
-    metric_decision_tree.append(decision_tree(train_X,train_Y,cross_val_X,cross_val_Y)['auc'])
+    [auc,predict_decision_tree]=decision_tree(train_X,train_Y,cross_val_X,cross_val_Y)
+    metric_decision_tree.append(auc)
     
     
     #Random Forest (Deafult=10 Trees)
     #The AUC (Cross Validation Data)
-    metric_random_forest.append(random_forest(train_X,train_Y,cross_val_X,cross_val_Y)['auc'])
+    [auc,predict_random_forest]=random_forest(train_X,train_Y,cross_val_X,cross_val_Y)
+    metric_random_forest.append(auc)
     
     #Scaling the data
     train_X=preprocessing.StandardScaler().fit_transform(train_X)
@@ -194,15 +190,19 @@ for train_index, cross_val_index in kf:
     
     #Linear Regression
     #The AUC (Cross Validation Data)
-    metric_linear_regression.append(linear_regression(train_X,train_Y,cross_val_X,cross_val_Y)['auc'])
+    [auc,predict_linear_regression]=linear_regression(train_X,train_Y,cross_val_X,cross_val_Y)
+    metric_linear_regression.append(auc)
     
     #Logistic Regression (Default=l2)
     #The AUC (Cross Validation Data)
-    metric_logistic_regression_L2.append(logistic_regression(train_X,train_Y,cross_val_X,cross_val_Y,'l2')['auc'])
+    [auc,predict_logistic_regression_L2]=logistic_regression(train_X,train_Y,cross_val_X,cross_val_Y,'l2')
+    metric_logistic_regression_L2.append(auc)
     
     #Logistic Regression-L1
     #The AUC (Cross Validation Data)
-    metric_logistic_regression_L1.append(logistic_regression(train_X,train_Y,cross_val_X,cross_val_Y,'l1')['auc'])
+    [auc,predict_logistic_regression_L1]=logistic_regression(train_X,train_Y,cross_val_X,cross_val_Y,'l1')
+    metric_logistic_regression_L1.append(auc)
+    
     
 avg_linear_regression=np.mean(metric_linear_regression)
 avg_logistic_regression_L2=np.mean(metric_logistic_regression_L2)
