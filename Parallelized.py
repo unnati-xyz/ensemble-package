@@ -184,6 +184,28 @@ def train_second_level_models(train_X,train_Y,model):
 
 # In[7]:
 
+def train_stack_model(train_X,train_Y):
+    
+    param = param_set()
+    #Trains the Stacking model (Gradient Boosting - XGBoost)
+    dtrain = xgb.DMatrix(train_X,label = train_Y)
+    stack = xgb.train(param, dtrain)
+    return stack
+
+
+# In[8]:
+
+def train_blend_model(train_X,train_Y): 
+    
+    param = param_set()
+    #Trains the blending model (Gradient Boosting - XGBoost)
+    dtrain = xgb.DMatrix(train_X,label = train_Y)
+    blend = xgb.train(param, dtrain)
+    return blend
+
+
+# In[9]:
+
 #Function calculates area under the curve and predictions on the given data, for the specified model.
 def cross_validation(model_name,model,cross_val_X,cross_val_Y):
     
@@ -213,7 +235,7 @@ def cross_validation(model_name,model,cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[8]:
+# In[10]:
 
 #Initialzing the variables that will be used to calculate the area under the curve. (cross Validation Data)
 metric_linear_regression=list()
@@ -232,91 +254,87 @@ metric_gradient_boosting=list()
 avg_gradient_boosting=0
 
 
-# In[9]:
+# In[11]:
 
 #Cross Validation using Stratified K Fold
-kf = StratifiedKFold(Data['y'], n_folds=2, shuffle=True)
+train, cross_val = train_test_split(Data, test_size = 0.5,stratify=Data['y'])
 
 
-# In[10]:
+# In[12]:
 
 #Training the base models, and calculating AUC on the cross validation data.
-for train_index, cross_val_index in kf:
     
-    #Selecting the data (Traing Data & Cross Validation Data)
-    train, cross_val = Data.iloc[train_index], Data.iloc[cross_val_index]
-    train_Y=train['y']
-    train_X=train.drop(['y'],axis=1)
-    cross_val_Y=cross_val['y']
-    cross_val_X=cross_val.drop(['y'],axis=1)
+#Selecting the data (Traing Data & Cross Validation Data)
+train_Y=train['y']
+train_X=train.drop(['y'],axis=1)
+cross_val_Y=cross_val['y']
+cross_val_X=cross_val.drop(['y'],axis=1)
     
-    #Training the base models parallely, the resulting models are stored in the variable models in the form of a list.
-    models=(Parallel(n_jobs=-1)(delayed(train_base_models)(train_X, train_Y, model) for model in base_model_list))
+#Training the base models parallely, the resulting models are stored in the variable models in the form of a list.
+models=(Parallel(n_jobs=-1)(delayed(train_base_models)(train_X, train_Y, model) for model in base_model_list))
     
-    #The list will contain both the models and the model names. The list is used in the next step.
-    for i in range(len(base_model_list)):
-        model_name_list.append((base_model_list[i],models[i]))
+#The list will contain both the models and the model names. The list is used in the next step.
+for i in range(len(base_model_list)):
+    model_name_list.append((base_model_list[i],models[i]))
         
-    #Computing the AUC and Predictions of all the base models on the cross validation data parallely.
-    auc_predict_cross_val=(Parallel(n_jobs=-1)(delayed(cross_validation)(model_name,model,cross_val_X,cross_val_Y) for model_name,model in model_name_list))
+#Computing the AUC and Predictions of all the base models on the cross validation data parallely.
+auc_predict_cross_val=(Parallel(n_jobs=-1)(delayed(cross_validation)(model_name,model,cross_val_X,cross_val_Y) for model_name,model in model_name_list))
     
-    #Gradient Boosting (XGBoost)
-    #The AUC error (Cross Validation Data)
-    auc,predict_gradient_boosting=auc_predict_cross_val[0][0],auc_predict_cross_val[0][1]
-    metric_gradient_boosting.append(auc)
+#Gradient Boosting (XGBoost)
+#The AUC error (Cross Validation Data)
+auc,predict_gradient_boosting=auc_predict_cross_val[0][0],auc_predict_cross_val[0][1]
+metric_gradient_boosting.append(auc)
     
-    #Multi Layer Perceptron
-    #The AUC (Cross Validation Data)
-    predict_mlp=list()
-    auc,predict_multi_layer_perceptron=auc_predict_cross_val[1][0],auc_predict_cross_val[1][1]
-    metric_multi_layer_perceptron.append(auc)
+#Multi Layer Perceptron
+#The AUC (Cross Validation Data)
+predict_mlp=list()
+auc,predict_multi_layer_perceptron=auc_predict_cross_val[1][0],auc_predict_cross_val[1][1]
+metric_multi_layer_perceptron.append(auc)
     
-    #predict_multi_layer_perceptron returns a list of lists containing the predictions, this cannot be converted to a dataframe.
-    #This inner lists are converted to floats and then used to convert it to a dataframe.
-    for i in predict_multi_layer_perceptron:
-        predict_mlp.append(float(i))
+#predict_multi_layer_perceptron returns a list of lists containing the predictions, this cannot be converted to a dataframe.
+#This inner lists are converted to floats and then used to convert it to a dataframe.
+for i in predict_multi_layer_perceptron:
+    predict_mlp.append(float(i))
     
-    #Decision Tree)
-    #The AUC (Cross Validation Data)
-    auc,predict_decision_tree=auc_predict_cross_val[2][0],auc_predict_cross_val[2][1]
-    metric_decision_tree.append(auc)
+#Decision Tree)
+#The AUC (Cross Validation Data)
+auc,predict_decision_tree=auc_predict_cross_val[2][0],auc_predict_cross_val[2][1]
+metric_decision_tree.append(auc)
     
-    #Random Forest (Deafult=10 Trees)
-    #The AUC (Cross Validation Data)
-    auc,predict_random_forest=auc_predict_cross_val[3][0],auc_predict_cross_val[3][1]
-    metric_random_forest.append(auc)
+#Random Forest (Deafult=10 Trees)
+#The AUC (Cross Validation Data)
+auc,predict_random_forest=auc_predict_cross_val[3][0],auc_predict_cross_val[3][1]
+metric_random_forest.append(auc)
     
-    #Linear Regression
-    #The AUC (Cross Validation Data)
-    auc,predict_linear_regression=auc_predict_cross_val[4][0],auc_predict_cross_val[4][1]
-    metric_linear_regression.append(auc)
+#Linear Regression
+#The AUC (Cross Validation Data)
+auc,predict_linear_regression=auc_predict_cross_val[4][0],auc_predict_cross_val[4][1]
+metric_linear_regression.append(auc)
     
-    #Logistic Regression (Default=l2)
-    #The AUC (Cross Validation Data)
-    auc,predict_logistic_regression_L1=auc_predict_cross_val[5][0],auc_predict_cross_val[5][1]
-    metric_logistic_regression_L1.append(auc)
+#Logistic Regression (Default=l2)
+#The AUC (Cross Validation Data)
+auc,predict_logistic_regression_L1=auc_predict_cross_val[5][0],auc_predict_cross_val[5][1]
+metric_logistic_regression_L1.append(auc)
     
     
-    #Logistic Regression-L2
-    #The AUC (Cross Validation Data)
-    auc,predict_logistic_regression_L2=auc_predict_cross_val[6][0],auc_predict_cross_val[6][1]
-    metric_logistic_regression_L2.append(auc)
+#Logistic Regression-L2
+#The AUC (Cross Validation Data)
+auc,predict_logistic_regression_L2=auc_predict_cross_val[6][0],auc_predict_cross_val[6][1]
+metric_logistic_regression_L2.append(auc)
     
-    #Building a list that contains all the predictions of the base models.
-    predict_list=[predict_gradient_boosting,predict_decision_tree,predict_random_forest, 
+#Building a list that contains all the predictions of the base models.
+predict_list=[predict_gradient_boosting,predict_decision_tree,predict_random_forest, 
                                predict_linear_regression,predict_logistic_regression_L2,
                                predict_logistic_regression_L1,predict_mlp]
     
-    #Converting the above list of predictions into a dataframe, which will be used to train the stacking model.
-    stack_X=stack_X.append(build_data_frame(predict_list))
+#Converting the above list of predictions into a dataframe, which will be used to train the stacking model.
+stack_X=stack_X.append(build_data_frame(predict_list))
     
-    #Building a list that contains all the raw features, used as cross validation data for the base models.
-    raw_features_X=raw_features_X.append(cross_val_X,ignore_index=True)
-                              
-    break
+#Building a list that contains all the raw features, used as cross validation data for the base models.
+raw_features_X=raw_features_X.append(cross_val_X,ignore_index=True)
 
 
-# In[11]:
+# In[13]:
 
 #Calculating the average AUC across all the AUC computed on the cross validation folds.
 avg_linear_regression=np.mean(metric_linear_regression)
@@ -328,7 +346,7 @@ avg_multi_layer_perceptron=np.mean(metric_multi_layer_perceptron)
 avg_gradient_boosting=np.mean(metric_gradient_boosting)
 
 
-# In[12]:
+# In[14]:
 
 #Printing the AUC for the base models.
 print (' AUC (Linear Regression)\n',avg_linear_regression)
@@ -340,16 +358,16 @@ print (' AUC (Multi Layer Perceptron)\n',avg_multi_layer_perceptron)
 print (' AUC (Gradient Boosting - XGBoost)\n',avg_gradient_boosting)
 
 
-# In[13]:
+# In[15]:
 
 #Converting the above list of predictions and raw features (Concatenate) into a dataframe, which will be used to train the blending model.
 blend_X=pd.concat([raw_features_X, stack_X], axis=1,ignore_index=True)
 
 #Training the Stacking and Blending models parallely using the predictions of base models on the cross validation data.
-model_second_level = Parallel(n_jobs=-1)(delayed(train_second_level_models)(train_X, cross_val_Y, model) for train_X,model in ((stack_X,second_level_model_list[0]),(blend_X,second_level_model_list[1])))
+model_second_level = Parallel(n_jobs=-1)(delayed(model_function)(train_X,train_Y)for model_function,train_X,train_Y in [(train_stack_model,stack_X,cross_val_Y),(train_blend_model,blend_X,cross_val_Y)])
 
 
-# In[14]:
+# In[16]:
 
 #Initialzing the variables that will be used to calculate the area under the curve. (Test Data)
 metric_linear_regression=list()
@@ -365,7 +383,7 @@ blend_X = pd.DataFrame()
 raw_features_X = pd.DataFrame()
 
 
-# In[15]:
+# In[17]:
 
 #Calculating AUC for all the models (Base Models & Stack Model) on the test data.
 
@@ -440,7 +458,7 @@ auc,predict_blend=auc_predict_test_second_level[1][0],auc_predict_test_second_le
 metric_blend=(auc) 
 
 
-# In[16]:
+# In[18]:
 
 print (' AUC (Linear Regression)\n',metric_linear_regression)
 print (' AUC (Logistic Regression - L2)\n',metric_logistic_regression_L2)
