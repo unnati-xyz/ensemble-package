@@ -43,14 +43,10 @@ for column in names:
 #Splitting the data into training and testing datasets (Stratified Split)
 Data, test = train_test_split(Data, test_size = 0.1,stratify=Data['y'])
 
-#The list of base models.
-base_model_list=['XGBoost','Multi Layer Perceptron','Decision Tree','Random Forest','Linear Regression','L1','L2']
-
 #The list of second level models.
 second_level_model_list=['Stack','Blend']
 
 model_name_list=list() #A list that contains both the models and the model names. Will be used during cross validation.
-second_level_model_name_list=list()
 
 #Initializing two data frames that will be used as training data for the stacked model.
 stack_X = pd.DataFrame() #The data frame will contain the predictions of the base models.
@@ -95,147 +91,202 @@ def param_set():
 
 # In[5]:
 
-#This function is used to train the base and stacking models. Returns all the models to be used for further computations.
-def train_base_models(train_X,train_Y,model):
-    
-    param = param_set()
-    
-    if(model=='XGBoost'):
-        
-        #Gradient Boosting
-        dtrain = xgb.DMatrix(train_X,label=train_Y)
-        gradient_boosting = xgb.train(param, dtrain)
-        return gradient_boosting
-       
-    elif(model=='Multi Layer Perceptron'):
-        
-        #Multi Layer Perceptron
-        multi_layer_perceptron = Sequential()
-        multi_layer_perceptron.add(Dense(output_dim = 64, input_dim = 20, init = 'uniform', activation = 'sigmoid'))
-        multi_layer_perceptron.add(Dense(output_dim = 1, input_dim = 64,activation = 'sigmoid',))
-        multi_layer_perceptron.compile(optimizer = 'rmsprop',loss = 'binary_crossentropy',metrics = ['accuracy'])
-        multi_layer_perceptron.fit(train_X.as_matrix(), train_Y.as_matrix(), nb_epoch = 5, batch_size = 128)
-        return multi_layer_perceptron
-        
-    elif(model=='Decision Tree'):
-        #Decision Tree
-        decision_tree = DecisionTreeClassifier(max_depth = 6)
-        decision_tree.fit(train_X,train_Y)
-        return decision_tree
-        
-    elif(model=='Random Forest'):
-        
-        #Random Forest (Deafult=10 Trees)
-        random_forest = RandomForestClassifier()
-        random_forest.fit(train_X,train_Y)
-        return random_forest
-        
-    elif(model=='Linear Regression'):
-        
-        #Scaling the data
-        train_X = preprocessing.StandardScaler().fit_transform(train_X)
-        
-        #Linear Regression
-        linear_regression = linear_model.LinearRegression()
-        linear_regression.fit(train_X,train_Y)
-        return linear_regression
-        
-    elif(model=='L1'):
-        
-        #Scaling the data
-        train_X = preprocessing.StandardScaler().fit_transform(train_X)
-        
-        #Logistic Regression (L1)
-        logistic_regression_L1 = linear_model.LogisticRegression(penalty = 'l1')
-        logistic_regression_L1.fit(train_X,train_Y)
-        return logistic_regression_L1
-        
-    elif(model=='L2'):
-       
-        #Scaling the data
-        train_X = preprocessing.StandardScaler().fit_transform(train_X)
-        
-        #Logistic Regression (L2)
-        logistic_regression_L2 = linear_model.LogisticRegression(penalty = 'l2')
-        logistic_regression_L2.fit(train_X,train_Y)
-        return logistic_regression_L2    
+#Initializing the base models.
+gradient_boosting=xgb.Booster()
+multi_layer_perceptron = Sequential()
+decision_tree = DecisionTreeClassifier(max_depth = 6)
+random_forest = RandomForestClassifier()
+linear_regression = linear_model.LinearRegression()
+logistic_regression_L1 = linear_model.LogisticRegression(penalty = 'l1')
+logistic_regression_L2 = linear_model.LogisticRegression(penalty = 'l2')
+
+#Initializing the second level models.
+stack=xgb.Booster()
+blend=xgb.Booster()
 
 
 # In[6]:
 
-def train_second_level_models(train_X,train_Y,model):
-    
+#Trains the Gradient Boosting model.
+def train_gradient_boosting(train_X,train_Y):
+
     param = param_set()
-    
-    #Trains the stacking model (Gradient Boosting - XGBoost)
-    if(model == 'Stack'):
-        
-        dtrain = xgb.DMatrix(train_X,label = train_Y)
-        stack = xgb.train(param, dtrain)
-        return stack
-    
-    #Trains the blending model (Gradient Boosting - XGBoost)
-    elif(model == 'Blend'):
-        
-        dtrain = xgb.DMatrix(train_X,label = train_Y)
-        blend = xgb.train(param, dtrain)
-        return blend
+    dtrain = xgb.DMatrix(train_X,label=train_Y)
+    gradient_boosting = xgb.train(param, dtrain)
+    return gradient_boosting
 
 
 # In[7]:
 
+#Trains the Multi Layer Perceptron model.
+def train_multi_layer_perceptron(train_X,train_Y):
+    
+    multi_layer_perceptron.add(Dense(output_dim = 64, input_dim = 20, init = 'uniform', activation = 'sigmoid'))
+    multi_layer_perceptron.add(Dense(output_dim = 1, input_dim = 64,activation = 'sigmoid',))
+    multi_layer_perceptron.compile(optimizer = 'rmsprop',loss = 'binary_crossentropy',metrics = ['accuracy'])
+    multi_layer_perceptron.fit(train_X.as_matrix(), train_Y.as_matrix(), nb_epoch = 5, batch_size = 128)
+    return multi_layer_perceptron
+
+
+# In[8]:
+
+#Trains the Decision Tree model.
+def train_decision_tree(train_X,train_Y):
+    
+    decision_tree.fit(train_X,train_Y)
+    return decision_tree
+
+
+# In[9]:
+
+#Trains the Random Forest model.
+def train_random_forest(train_X,train_Y):
+    
+    random_forest.fit(train_X,train_Y)
+    return random_forest
+
+
+# In[10]:
+
+#Trains the Linear Regression model.
+def train_linear_regression(train_X,train_Y):
+    
+    #Scaling the data
+    train_X = preprocessing.StandardScaler().fit_transform(train_X)
+    linear_regression.fit(train_X,train_Y)
+    return linear_regression
+
+
+# In[11]:
+
+#Trains the Logistic Regression (L1) model.
+def train_logistic_regression_L1(train_X,train_Y):
+    
+    #Scaling the data
+    train_X = preprocessing.StandardScaler().fit_transform(train_X)
+    logistic_regression_L1.fit(train_X,train_Y)
+    return logistic_regression_L1
+
+
+# In[12]:
+
+#Trains the Logistic Regression (L1) model.
+def train_logistic_regression_L2(train_X,train_Y):
+    
+    #Scaling the data
+    train_X = preprocessing.StandardScaler().fit_transform(train_X)
+    logistic_regression_L2.fit(train_X,train_Y)
+    return logistic_regression_L2   
+
+
+# In[13]:
+
+#Trains the Stacking model (Gradient Boosting - XGBoost)
 def train_stack_model(train_X,train_Y):
     
     param = param_set()
-    #Trains the Stacking model (Gradient Boosting - XGBoost)
     dtrain = xgb.DMatrix(train_X,label = train_Y)
     stack = xgb.train(param, dtrain)
     return stack
 
 
-# In[8]:
+# In[14]:
 
+#Trains the blending model (Gradient Boosting - XGBoost)
 def train_blend_model(train_X,train_Y): 
     
     param = param_set()
-    #Trains the blending model (Gradient Boosting - XGBoost)
     dtrain = xgb.DMatrix(train_X,label = train_Y)
     blend = xgb.train(param, dtrain)
     return blend
 
 
-# In[9]:
+# In[15]:
 
-#Function calculates area under the curve and predictions on the given data, for the specified model.
-def cross_validation(model_name,model,cross_val_X,cross_val_Y):
+def cross_val_gradient_boosting(cross_val_X,cross_val_Y):
     
-    if(model_name == 'XGBoost'): 
-        
-        predict = model.predict(xgb.DMatrix(cross_val_X,label=cross_val_Y))
-        
-    elif(model_name == 'Linear Regression'):
-        
-        cross_val_X=preprocessing.StandardScaler().fit_transform(cross_val_X)
-        predict = model.predict(cross_val_X)
-        
-    elif(model_name == 'L1' or model_name == 'L2'):
-        
-        cross_val_X=preprocessing.StandardScaler().fit_transform(cross_val_X)
-        predict = model.predict_proba(cross_val_X)[:,1]
-        
-    elif(model_name == 'Multi Layer Perceptron'):
-        
-        predict = model.predict_on_batch(cross_val_X)
-    else:
-        
-        predict = model.predict_proba(cross_val_X)[:,1]
-        
+    predict = gradient_boosting.predict(xgb.DMatrix(cross_val_X,label=cross_val_Y))
     auc = roc_auc_score(cross_val_Y,predict)
-    
     return [auc,predict]
 
 
-# In[10]:
+# In[16]:
+
+def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
+    
+    predict = multi_layer_perceptron.predict_on_batch(cross_val_X)
+    auc = roc_auc_score(cross_val_Y,predict)
+    return [auc,predict]
+
+
+# In[17]:
+
+def cross_val_decision_tree(cross_val_X,cross_val_Y):
+    
+    global decision_tree
+    predict = decision_tree.predict_proba(cross_val_X)[:,1]
+    auc = roc_auc_score(cross_val_Y,predict)
+    return [auc,predict]
+
+
+# In[18]:
+
+def cross_val_random_forest(cross_val_X,cross_val_Y):
+    
+    predict = random_forest.predict_proba(cross_val_X)[:,1]
+    auc = roc_auc_score(cross_val_Y,predict)
+    return [auc,predict]
+
+
+# In[19]:
+
+def cross_val_linear_regression(cross_val_X,cross_val_Y):
+    
+    cross_val_X=preprocessing.StandardScaler().fit_transform(cross_val_X)
+    predict = linear_regression.predict(cross_val_X)
+    auc = roc_auc_score(cross_val_Y,predict)
+    return [auc,predict]
+
+
+# In[20]:
+
+def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
+    
+    cross_val_X=preprocessing.StandardScaler().fit_transform(cross_val_X)
+    predict = logistic_regression_L1.predict_proba(cross_val_X)[:,1]
+    auc = roc_auc_score(cross_val_Y,predict)
+    return [auc,predict]
+
+
+# In[21]:
+
+def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
+    
+    cross_val_X=preprocessing.StandardScaler().fit_transform(cross_val_X)
+    predict = logistic_regression_L2.predict_proba(cross_val_X)[:,1]
+    auc = roc_auc_score(cross_val_Y,predict)
+    return [auc,predict]
+
+
+# In[22]:
+
+def cross_val_stack(cross_val_X,cross_val_Y):
+
+    predict = stack.predict(xgb.DMatrix(cross_val_X,label=cross_val_Y))
+    auc = roc_auc_score(cross_val_Y,predict)
+    return [auc,predict]
+
+
+# In[23]:
+
+def cross_val_blend(cross_val_X,cross_val_Y):
+
+    predict = blend.predict(xgb.DMatrix(cross_val_X,label=cross_val_Y))
+    auc = roc_auc_score(cross_val_Y,predict)
+    return [auc,predict]
+
+
+# In[24]:
 
 #Initialzing the variables that will be used to calculate the area under the curve. (cross Validation Data)
 metric_linear_regression=list()
@@ -254,13 +305,27 @@ metric_gradient_boosting=list()
 avg_gradient_boosting=0
 
 
-# In[11]:
+# In[25]:
+
+#The list of base model functions (Training).
+train_base_model_list=[train_gradient_boosting,train_multi_layer_perceptron,train_decision_tree,train_random_forest,
+                 train_linear_regression,train_logistic_regression_L1,train_logistic_regression_L2]
+
+#The list of base model functions (Cross Validation).
+cross_val_base_model_list=[cross_val_gradient_boosting,cross_val_multi_layer_perceptron,cross_val_decision_tree,cross_val_random_forest,
+                 cross_val_linear_regression,cross_val_logistic_regression_L1,cross_val_logistic_regression_L2]
+
+#The list of second level model functions.
+cross_val_second_level_model=[cross_val_stack,cross_val_blend]
+
+
+# In[26]:
 
 #Cross Validation using Stratified K Fold
 train, cross_val = train_test_split(Data, test_size = 0.5,stratify=Data['y'])
 
 
-# In[12]:
+# In[27]:
 
 #Training the base models, and calculating AUC on the cross validation data.
     
@@ -270,15 +335,11 @@ train_X=train.drop(['y'],axis=1)
 cross_val_Y=cross_val['y']
 cross_val_X=cross_val.drop(['y'],axis=1)
     
-#Training the base models parallely, the resulting models are stored in the variable models in the form of a list.
-models=(Parallel(n_jobs=-1)(delayed(train_base_models)(train_X, train_Y, model) for model in base_model_list))
+#Training the base models parallely, the resulting models are stored which will be used for cross validation.
+[gradient_boosting,multi_layer_perceptron,decision_tree,random_forest,linear_regression,logistic_regression_L1,logistic_regression_L2]=(Parallel(n_jobs=-1)(delayed(function)(train_X, train_Y) for function in train_base_model_list))
     
-#The list will contain both the models and the model names. The list is used in the next step.
-for i in range(len(base_model_list)):
-    model_name_list.append((base_model_list[i],models[i]))
-        
 #Computing the AUC and Predictions of all the base models on the cross validation data parallely.
-auc_predict_cross_val=(Parallel(n_jobs=-1)(delayed(cross_validation)(model_name,model,cross_val_X,cross_val_Y) for model_name,model in model_name_list))
+auc_predict_cross_val=(Parallel(n_jobs=-1)(delayed(function)(cross_val_X,cross_val_Y) for function in cross_val_base_model_list))
     
 #Gradient Boosting (XGBoost)
 #The AUC error (Cross Validation Data)
@@ -334,7 +395,7 @@ stack_X=stack_X.append(build_data_frame(predict_list))
 raw_features_X=raw_features_X.append(cross_val_X,ignore_index=True)
 
 
-# In[13]:
+# In[28]:
 
 #Calculating the average AUC across all the AUC computed on the cross validation folds.
 avg_linear_regression=np.mean(metric_linear_regression)
@@ -346,7 +407,7 @@ avg_multi_layer_perceptron=np.mean(metric_multi_layer_perceptron)
 avg_gradient_boosting=np.mean(metric_gradient_boosting)
 
 
-# In[14]:
+# In[29]:
 
 #Printing the AUC for the base models.
 print (' AUC (Linear Regression)\n',avg_linear_regression)
@@ -358,16 +419,16 @@ print (' AUC (Multi Layer Perceptron)\n',avg_multi_layer_perceptron)
 print (' AUC (Gradient Boosting - XGBoost)\n',avg_gradient_boosting)
 
 
-# In[15]:
+# In[30]:
 
 #Converting the above list of predictions and raw features (Concatenate) into a dataframe, which will be used to train the blending model.
 blend_X=pd.concat([raw_features_X, stack_X], axis=1,ignore_index=True)
 
 #Training the Stacking and Blending models parallely using the predictions of base models on the cross validation data.
-model_second_level = Parallel(n_jobs=-1)(delayed(model_function)(train_X,train_Y)for model_function,train_X,train_Y in [(train_stack_model,stack_X,cross_val_Y),(train_blend_model,blend_X,cross_val_Y)])
+[stack,blend] = Parallel(n_jobs=-1)(delayed(model_function)(train_X,train_Y)for model_function,train_X,train_Y in [(train_stack_model,stack_X,cross_val_Y),(train_blend_model,blend_X,cross_val_Y)])
 
 
-# In[16]:
+# In[31]:
 
 #Initialzing the variables that will be used to calculate the area under the curve. (Test Data)
 metric_linear_regression=list()
@@ -383,7 +444,7 @@ blend_X = pd.DataFrame()
 raw_features_X = pd.DataFrame()
 
 
-# In[17]:
+# In[32]:
 
 #Calculating AUC for all the models (Base Models & Stack Model) on the test data.
 
@@ -392,7 +453,7 @@ test_Y=test['y']
 test_X=test.drop(['y'],axis=1)
 
 #Computing the AUC and Predictions of all the base models on the test data parallely.
-auc_predict_test_base=(Parallel(n_jobs=-1)(delayed(cross_validation)(model_name,model,test_X,test_Y) for model_name,model in model_name_list))
+auc_predict_test_base=(Parallel(n_jobs=-1)(delayed(function)(test_X,test_Y) for function in cross_val_base_model_list))
     
 #Gradient Boosting (XGBoost)
 #The AUC error (Cross Validation Data)
@@ -447,7 +508,7 @@ raw_features_X=raw_features_X.append(test_X,ignore_index=True)
 blend_X=pd.concat([raw_features_X, dstack_X], axis=1,ignore_index=True)#Converting the above list of predictions and raw features (Concatenate) into a dataframe
 
 #Computing the AUC and Predictions of the Stacking and Blending models on the test data parallely.
-auc_predict_test_second_level=Parallel(n_jobs=-1)(delayed(cross_validation)('XGBoost',model,test_X, test_Y) for test_X,model in ((dstack_X,model_second_level[0]),(blend_X,model_second_level[1])))
+auc_predict_test_second_level=Parallel(n_jobs=-1)(delayed(function)(test_X, test_Y) for function,test_X in ((cross_val_second_level_model[0],dstack_X),(cross_val_second_level_model[1],blend_X)))
 
 #Stacking (XGBoost - Gradient Boosting)
 auc,predict_stack=auc_predict_test_second_level[0][0],auc_predict_test_second_level[0][1]
@@ -458,7 +519,7 @@ auc,predict_blend=auc_predict_test_second_level[1][0],auc_predict_test_second_le
 metric_blend=(auc) 
 
 
-# In[18]:
+# In[33]:
 
 print (' AUC (Linear Regression)\n',metric_linear_regression)
 print (' AUC (Logistic Regression - L2)\n',metric_logistic_regression_L2)
