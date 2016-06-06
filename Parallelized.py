@@ -328,6 +328,14 @@ def cross_val_blend(cross_val_X,cross_val_Y):
 
 # In[26]:
 
+def weighted_average(data_frame_predictions, cross_val_Y):
+    weighted_avg_predictions=np.average(data_frame_predictions,axis=1)
+    auc = roc_auc_score(cross_val_Y,weighted_avg_predictions)
+    return [auc,weighted_avg_predictions]  
+
+
+# In[27]:
+
 def metric_initialize():
     
     global metric_linear_regression
@@ -339,6 +347,7 @@ def metric_initialize():
     global metric_multi_layer_perceptron
     global metric_stacking
     global metric_blending
+    global metric_weighted_average
     
     #Initialzing the variables that will be used to calculate the area under the curve on the given data.
     metric_linear_regression=list()
@@ -348,11 +357,12 @@ def metric_initialize():
     metric_random_forest=list()
     metric_multi_layer_perceptron=list()
     metric_gradient_boosting=list()
+    metric_weighted_average=list()
     metric_stacking=list()
     metric_blending=list()
 
 
-# In[27]:
+# In[28]:
 
 #The list of base model functions (Training).
 train_base_model_list=[train_gradient_boosting,train_multi_layer_perceptron,train_decision_tree,train_random_forest,
@@ -366,7 +376,7 @@ cross_val_base_model_list=[cross_val_gradient_boosting,cross_val_multi_layer_per
 cross_val_second_level_model=[cross_val_stack,cross_val_blend]
 
 
-# In[28]:
+# In[29]:
 
 def train_cross_val_base_models():
     
@@ -451,9 +461,15 @@ def train_cross_val_base_models():
     #Storing the cross validation dataset labels in the variable stack_Y, which will be used later to train the stacking and blending models.
     global stack_Y
     stack_Y = cross_val_Y  
+    
+    #Performing a weighted average of all the base models and calculating the resulting AUC.
+    auc,predict_weighted_average=weighted_average(stack_X,stack_Y)
+    metric_weighted_average.append(auc)
+    
+    #stack_X=pd.concat([stack_X,build_data_frame(predict_weighted_average).T], axis=1,ignore_index=True)#Including the predictions of the weighted average model to train the stacking and blending models.
 
 
-# In[29]:
+# In[30]:
 
 def print_metric_cross_val(n):
     
@@ -474,12 +490,13 @@ def print_metric_cross_val(n):
     print (' AUC (Decision Tree)\n',avg_decision_tree)
     print (' AUC (Random Forest)\n',avg_random_forest)
     print (' AUC (Multi Layer Perceptron)\n',avg_multi_layer_perceptron)
+    print (' AUC (Weighted Average)\n',metric_weighted_average)
     print (' AUC (Gradient Boosting - XGBoost)\n',avg_gradient_boosting)
     print('\nEnd Cross Validation Sample',n,'\n')
     
 
 
-# In[30]:
+# In[31]:
 
 def train_stack_blend():
     
@@ -490,11 +507,12 @@ def train_stack_blend():
     #Training the Stacking and Blending models parallely using the predictions of base models on the cross validation data.
     global stack
     global blend
-    [stack,blend] = Parallel(n_jobs=-1)(delayed(model_function)(train_X,train_Y)for model_function,train_X,train_Y in [(train_stack_model,stack_X,stack_Y),(train_blend_model,blend_X,stack_Y)])
+    function_param = [(train_stack_model,stack_X,stack_Y),(train_blend_model,blend_X,stack_Y)]
+    [stack,blend] = Parallel(n_jobs=-1)(delayed(model_function)(train_X,train_Y)for model_function,train_X,train_Y in function_param)
     
 
 
-# In[31]:
+# In[32]:
 
 def print_metric_test(n):
     
@@ -506,13 +524,14 @@ def print_metric_test(n):
     print (' AUC (Decision Tree)\n',metric_decision_tree)
     print (' AUC (Random Forest)\n',metric_random_forest)
     print (' AUC (Multi Layer Perceptron)\n',metric_multi_layer_perceptron)
+    print (' AUC (Weighted Average)\n',metric_weighted_average)
     print (' AUC (Gradient Boosting - XGBoost)\n',metric_gradient_boosting)
     print (' AUC (Stacking)\n',metric_stacking)
     print (' AUC (Blending)\n',metric_blending)
     print('\nEnd Test Sample',n,'\n')
 
 
-# In[32]:
+# In[33]:
 
 def test_data():
     
@@ -577,6 +596,13 @@ def test_data():
     test_raw_features_X=test_raw_features_X.append(test_X,ignore_index=True)
     test_blend_X=pd.concat([test_raw_features_X, test_stack_X], axis=1,ignore_index=True)#Converting the above list of predictions and raw features (Concatenate) into a dataframe
 
+    #Performing a weighted average of all the base models and calculating the resulting AUC.
+    auc,predict_weighted_average=weighted_average(test_stack_X,test_Y)
+    metric_weighted_average.append(auc)
+    
+    #test_stack_X=pd.concat([test_stack_X,build_data_frame(predict_weighted_average).T], axis=1,ignore_index=True) #Including the predictions of the weighted average model to the stacking model
+    #test_blend_X=pd.concat([test_raw_features_X, test_stack_X], axis=1,ignore_index=True) #Including the predictions of the weighted average model to the blending model
+    
     #Computing the AUC and Predictions of the Stacking and Blending models on the test data parallely.
     auc_predict_test_second_level=Parallel(n_jobs=-1)(delayed(function)(test_X, test_Y) for function,test_X in ((cross_val_second_level_model[0],test_stack_X),(cross_val_second_level_model[1],test_blend_X)))
 
@@ -587,9 +613,11 @@ def test_data():
     #Blending (XGBoost - Gradient Boosting)
     auc,predict_blend=auc_predict_test_second_level[1][0],auc_predict_test_second_level[1][1]
     metric_blending.append(auc)
+    
+    
 
 
-# In[33]:
+# In[34]:
 
 #Performing training, cross validation and testing on different stratified splits of the data.
 def sample_generation(n):
@@ -606,12 +634,17 @@ def sample_generation(n):
         print_metric_test(i)
 
 
-# In[34]:
+# In[35]:
 
 sample_generation(5)
 
 
-# In[35]:
+# In[36]:
 
 #(Parallel(n_jobs=-1)(delayed(sample_generation)(n) for n in range(4)))
+
+
+# In[ ]:
+
+
 
