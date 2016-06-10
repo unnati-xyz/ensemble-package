@@ -52,7 +52,6 @@ def sample_generation(n):
     for i in range(n):
         data_initialize()
         data_split()
-        base_second_level_models_initialize()
         metric_initialize()
         train_cross_val_base_models()
         print_metric_cross_val(i)
@@ -92,7 +91,6 @@ def data_initialize():
     global stack_Y
     
     #Initializing two data frames that will be used as training data for the stacked model.
-    
     #The data frame will contain the predictions of the base models.
     stack_X = pd.DataFrame() 
     #The data frame will contain the calss labels of the base models.
@@ -146,129 +144,110 @@ def param_set():
 
 # In[8]:
 
-def base_second_level_models_initialize():
-    
-    global gradient_boosting
-    global multi_layer_perceptron
-    global decision_tree
-    global random_forest
-    global linear_regression
-    global logistic_regression_L1
-    global logistic_regression_L2
-    
-    #Initializing the base models.
-    gradient_boosting = xgb.Booster()
-    multi_layer_perceptron = Sequential()
-    decision_tree = DecisionTreeClassifier(max_depth=6)
-    random_forest = RandomForestClassifier()
-    linear_regression = linear_model.LinearRegression()
-    logistic_regression_L1 = linear_model.LogisticRegression(penalty = 'l1')
-    logistic_regression_L2 = linear_model.LogisticRegression(penalty = 'l2')
-    
-    global stack
-    global blend
-    #Initializing the second level models.
-    stack=xgb.Booster()
-    blend=xgb.Booster()
-
-
-# In[9]:
-
 #Trains the Gradient Boosting model.
 def train_gradient_boosting(train_X,train_Y):
 
     param = param_set()
+    model = xgb.Booster()
     dtrain = xgb.DMatrix(train_X, label = train_Y)
-    gradient_boosting = xgb.train(param, dtrain)
-    return gradient_boosting
+    model = xgb.train(param, dtrain)
+    return model
 
 
-# In[10]:
+# In[9]:
 
 #Trains the Multi Layer Perceptron model.
 def train_multi_layer_perceptron(train_X,train_Y):
     
-    multi_layer_perceptron.add(Dense(output_dim = 64, input_dim = 20, init = 'uniform', activation = 'sigmoid'))
-    multi_layer_perceptron.add(Dense(output_dim = 1, input_dim = 64,activation = 'sigmoid',))
-    multi_layer_perceptron.compile(optimizer = 'rmsprop',loss = 'binary_crossentropy',metrics = ['accuracy'])
-    multi_layer_perceptron.fit(train_X.as_matrix(), train_Y.as_matrix(), nb_epoch = 5, batch_size = 128)
-    return multi_layer_perceptron
+    model = Sequential()
+    model.add(Dense(output_dim = 64, input_dim = 20, init = 'uniform', activation = 'sigmoid'))
+    model.add(Dense(output_dim = 1, input_dim = 64,activation = 'sigmoid',))
+    model.compile(optimizer = 'rmsprop',loss = 'binary_crossentropy',metrics = ['accuracy'])
+    model.fit(train_X.as_matrix(), train_Y.as_matrix(), nb_epoch = 5, batch_size = 128)
+    return model
 
 
-# In[11]:
+# In[10]:
 
 #Trains the Decision Tree model.
 def train_decision_tree(train_X,train_Y):
     
-    decision_tree.fit(train_X,train_Y)
-    return decision_tree
+    model = DecisionTreeClassifier(max_depth=6)
+    model.fit(train_X,train_Y)
+    return model
 
 
-# In[12]:
+# In[11]:
 
 #Trains the Random Forest model.
 def train_random_forest(train_X,train_Y):
     
-    random_forest.fit(train_X,train_Y)
-    return random_forest
+    model = RandomForestClassifier()
+    model.fit(train_X,train_Y)
+    return model
 
 
-# In[13]:
+# In[12]:
 
 #Trains the Linear Regression model.
 def train_linear_regression(train_X,train_Y):
     
+    model = linear_model.LinearRegression()
     #Scaling the data
     train_X = preprocessing.StandardScaler().fit_transform(train_X)
-    linear_regression.fit(train_X,train_Y)
-    return linear_regression
+    model.fit(train_X,train_Y)
+    return model
+
+
+# In[13]:
+
+#Trains the Logistic Regression (L1) model.
+def train_logistic_regression_L1(train_X,train_Y):
+    
+    model = linear_model.LogisticRegression(penalty = 'l1')
+    #Scaling the data
+    train_X = preprocessing.StandardScaler().fit_transform(train_X)
+    model.fit(train_X,train_Y)
+    return model
 
 
 # In[14]:
 
 #Trains the Logistic Regression (L1) model.
-def train_logistic_regression_L1(train_X,train_Y):
+def train_logistic_regression_L2(train_X,train_Y):
     
+    model = linear_model.LogisticRegression(penalty = 'l2')
     #Scaling the data
     train_X = preprocessing.StandardScaler().fit_transform(train_X)
-    logistic_regression_L1.fit(train_X,train_Y)
-    return logistic_regression_L1
+    model.fit(train_X,train_Y)
+    return model   
 
 
 # In[15]:
 
-#Trains the Logistic Regression (L1) model.
-def train_logistic_regression_L2(train_X,train_Y):
+#Trains the Stacking model (Gradient Boosting - XGBoost)
+def train_stack_model(train_X,train_Y):
     
-    #Scaling the data
-    train_X = preprocessing.StandardScaler().fit_transform(train_X)
-    logistic_regression_L2.fit(train_X,train_Y)
-    return logistic_regression_L2   
+    model = xgb.Booster()
+    param = param_set()
+    dtrain = xgb.DMatrix(train_X,label = train_Y)
+    model = xgb.train(param, dtrain)
+    return model
 
 
 # In[16]:
 
-#Trains the Stacking model (Gradient Boosting - XGBoost)
-def train_stack_model(train_X,train_Y):
-    
-    param = param_set()
-    dtrain = xgb.DMatrix(train_X,label = train_Y)
-    stack = xgb.train(param, dtrain)
-    return stack
-
-
-# In[17]:
-
 #Trains the blending model (Gradient Boosting - XGBoost)
 def train_blend_model(train_X,train_Y): 
     
+    model = xgb.Booster()
     param = param_set()
     dtrain = xgb.DMatrix(train_X,label = train_Y)
-    blend = xgb.train(param, dtrain)
-    return blend
+    model = xgb.train(param, dtrain)
+    return model
 
 
-# In[18]:
+# In[17]:
 
 def cross_val_gradient_boosting(cross_val_X,cross_val_Y):
     
@@ -277,7 +256,7 @@ def cross_val_gradient_boosting(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[19]:
+# In[18]:
 
 def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
     
@@ -286,7 +265,7 @@ def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[20]:
+# In[19]:
 
 def cross_val_decision_tree(cross_val_X,cross_val_Y):
     
@@ -296,7 +275,7 @@ def cross_val_decision_tree(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[21]:
+# In[20]:
 
 def cross_val_random_forest(cross_val_X,cross_val_Y):
     
@@ -305,7 +284,7 @@ def cross_val_random_forest(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[22]:
+# In[21]:
 
 def cross_val_linear_regression(cross_val_X,cross_val_Y):
     
@@ -315,7 +294,7 @@ def cross_val_linear_regression(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[23]:
+# In[22]:
 
 def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
     
@@ -325,7 +304,7 @@ def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[24]:
+# In[23]:
 
 def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
     
@@ -335,7 +314,7 @@ def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[25]:
+# In[24]:
 
 def cross_val_stack(cross_val_X,cross_val_Y):
 
@@ -344,7 +323,7 @@ def cross_val_stack(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[26]:
+# In[25]:
 
 def cross_val_blend(cross_val_X,cross_val_Y):
 
@@ -353,7 +332,7 @@ def cross_val_blend(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[27]:
+# In[26]:
 
 #Perfroms weighted average of the predictions of the base models.
 def weighted_average(data_frame_predictions, cross_val_Y,weight):
@@ -363,7 +342,7 @@ def weighted_average(data_frame_predictions, cross_val_Y,weight):
     return [auc,weighted_avg_predictions]  
 
 
-# In[28]:
+# In[27]:
 
 #Defining the objective. Appropriate weights need to be calculated to minimize the loss.
 def objective(space):
@@ -379,12 +358,11 @@ def objective(space):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[29]:
+# In[28]:
 
 #Assigning the weights that need to be checked, for minimizing the objective (Loss)
 def assign_space():
     
-    global space
     space ={
         'w1': hp.choice("x_w1", range(10)),
         'w2': hp.choice('x_w2', range(10)),
@@ -394,33 +372,34 @@ def assign_space():
         'w6': hp.choice('x_w6', range(10)),
         'w7': hp.choice('x_w7', range(10))
     }
+    
+    return space
 
 
-# In[30]:
+# In[29]:
 
 #Function that finds the best possible combination of weights for performing the weighted predictions.
 def get_weights():
     
-    assign_space()
+    space = assign_space()
     trials = Trials()
     
-    best = fmin(fn=objective,
-    space=space,
-    algo=tpe.suggest,
-    max_evals=100,
-    trials=trials)
+    best = fmin(fn = objective,
+    space = space,
+    algo = tpe.suggest,
+    max_evals = 100,
+    trials = trials)
     
-    best_weights=list()
+    best_weights = list()
     
     #Arranging the weights in order of the respective models, and then returning the list of weights.
     for key in sorted(best):
         best_weights.append(best[key])
     
     return best_weights
-    
 
 
-# In[31]:
+# In[30]:
 
 def metric_initialize():
     
@@ -448,7 +427,7 @@ def metric_initialize():
     metric_blending = list()
 
 
-# In[32]:
+# In[31]:
 
 #The list of base model functions (Training).
 train_base_model_list = [train_gradient_boosting,train_multi_layer_perceptron,train_decision_tree,train_random_forest,
@@ -465,7 +444,7 @@ cross_val_second_level_model = [cross_val_stack,cross_val_blend]
 
 # # Base Model Predictions
 
-# In[33]:
+# In[32]:
 
 def train_cross_val_base_models():
     
@@ -564,7 +543,7 @@ def train_cross_val_base_models():
 
 
 
-# In[34]:
+# In[33]:
 
 def print_metric_cross_val(n):
     
@@ -591,7 +570,7 @@ def print_metric_cross_val(n):
     
 
 
-# In[35]:
+# In[34]:
 
 def train_stack_blend():
     
@@ -609,7 +588,7 @@ def train_stack_blend():
     
 
 
-# In[36]:
+# In[35]:
 
 def print_metric_test(n):
     
@@ -630,7 +609,7 @@ def print_metric_test(n):
 
 # # Testing the Base and Second Level Models on the Test Dataset
 
-# In[37]:
+# In[36]:
 
 def test_data():
     
@@ -716,12 +695,12 @@ def test_data():
     
 
 
+# In[37]:
+
+sample_generation(1)
+
+
 # In[38]:
-
-sample_generation(5)
-
-
-# In[39]:
 
 #(Parallel(n_jobs=-1)(delayed(sample_generation)(n) for n in range(4)))
 
