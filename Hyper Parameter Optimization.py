@@ -119,35 +119,9 @@ def data_initialize():
     test_stack_Y = pd.DataFrame() 
 
 
-# In[7]:
-
-#Defining the parameters for the XGBoost (Gradient Boosting) Algorithm.
-def param_sett():
-    
-    #Gradient Boosting (XGBoost)
-    param = {}
-    #Setting Parameters for the Booster
-    param['booster'] = 'gbtree'
-    param['objective'] = 'binary:logistic'
-    param["eval_metric"] = "auc"
-    param['eta'] = 0.3
-    param['gamma'] = 0
-    param['max_depth'] = 6
-    param['min_child_weight'] = 1
-    param['max_delta_step'] = 0
-    param['subsample'] = 1
-    param['colsample_bytree'] = 1
-    param['silent'] = 1
-    param['seed'] = 0
-    param['base_score'] = 0.5
-    param['lambda_bias'] = 1
-    
-    return param
-
-
 # # Gradient Boosting (XGBoost)
 
-# In[8]:
+# In[7]:
 
 #Defining the parameters for the XGBoost (Gradient Boosting) Algorithm.
 def param_set_XGBoost():
@@ -155,7 +129,7 @@ def param_set_XGBoost():
     #Gradient Boosting (XGBoost)
     param = {}
     #Setting Parameters for the Booster which will be optimized later using hyperopt.
-    param['booster'] = ['gbtree','gblinear','dart']
+    param['booster'] = ['gbtree','gblinear']
     param['objective'] = ['binary:logistic']
     param["eval_metric"] = ["auc"]
     param['eta'] = [0.1,0.3,0.5,0.7,0.9]
@@ -169,11 +143,12 @@ def param_set_XGBoost():
     param['seed'] = [0]
     param['base_score'] = [0.5]
     param['lambda_bias'] = [1,5,10]
+    param['lambda'] = [0,0.1,0.5,1,10]
     
     return param
 
 
-# In[9]:
+# In[8]:
 
 #Assigning the values of the XGBoost parameters that need to be checked, for minimizing the objective (loss).
 #The values that give the most optimum results will be picked to train the model.
@@ -181,6 +156,8 @@ def assign_space_gradient_boosting():
     
     parameter_gradient_boosting = param_set_XGBoost()
     space_gradient_boosting ={
+        
+        'booster': hp.choice('booster', parameter_gradient_boosting['booster']),
         
         'eta': hp.choice('eta', parameter_gradient_boosting['eta']),
         
@@ -202,14 +179,16 @@ def assign_space_gradient_boosting():
         
         'base_score': hp.choice('base_score', parameter_gradient_boosting['base_score']),
         
-        'lambda_bias': hp.choice('lambda_bias', parameter_gradient_boosting['lambda_bias'])
+        'lambda_bias': hp.choice('lambda_bias', parameter_gradient_boosting['lambda_bias']),
+        
+        'lambda': hp.choice('lambda', parameter_gradient_boosting['lambda'])
         
     }
     
     return space_gradient_boosting
 
 
-# In[10]:
+# In[9]:
 
 #This function calculates the loss for different parameter values and is used to determine the most optimum 
 #parameter values
@@ -218,7 +197,7 @@ def objective_gradient_boosting(space_gradient_boosting):
     #Gradient Boosting (XGBoost)
     param = {}
     #Setting Parameters for the Booster
-    param['booster'] = 'gbtree'
+    param['booster'] = space_gradient_boosting['booster']
     param['objective'] = 'binary:logistic'
     param["eval_metric"] = "auc"
     param['eta'] = space_gradient_boosting['eta']
@@ -232,6 +211,7 @@ def objective_gradient_boosting(space_gradient_boosting):
     param['seed'] = space_gradient_boosting['seed']
     param['base_score'] = space_gradient_boosting['base_score']
     param['lambda_bias'] = space_gradient_boosting['lambda_bias']
+    param['lambda'] = space_gradient_boosting['lambda']
     
     model = xgb.Booster()
     auc_list = list()
@@ -255,16 +235,16 @@ def objective_gradient_boosting(space_gradient_boosting):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[11]:
+# In[10]:
 
 #Using the loss values, this function picks the optimum parameter values. These values will be used 
 #for training the model
-def gradient_boosting_parameters(train_X,train_Y):
+def gradient_boosting_parameters(train_X,train_Y,obj):
     
     space_gradient_boosting = assign_space_gradient_boosting()
     trials = Trials()
     
-    best = fmin(fn = objective_gradient_boosting,
+    best = fmin(fn = obj,
     space = space_gradient_boosting,
     algo = tpe.suggest,
     max_evals = 100,
@@ -278,7 +258,7 @@ def gradient_boosting_parameters(train_X,train_Y):
     for key in best:
         optimal_param[key] = parameter_gradient_boosting[key][best[key]]
         
-    optimal_param['booster'] = 'gbtree'
+    #optimal_param['booster'] = 'gbtree'
     optimal_param['objective'] = 'binary:logistic'
     optimal_param["eval_metric"] = "auc"
     
@@ -288,17 +268,17 @@ def gradient_boosting_parameters(train_X,train_Y):
     return model
 
 
-# In[12]:
+# In[11]:
 
 #Trains the Gradient Boosting model.
 def train_gradient_boosting(train_X,train_Y):
     
-    model = gradient_boosting_parameters(train_X,train_Y)
+    model = gradient_boosting_parameters(train_X,train_Y,objective_gradient_boosting)
     return model
     
 
 
-# In[13]:
+# In[12]:
 
 def cross_val_gradient_boosting(cross_val_X,cross_val_Y):
     
@@ -309,7 +289,7 @@ def cross_val_gradient_boosting(cross_val_X,cross_val_Y):
 
 # # Multi Layer Perceptron
 
-# In[14]:
+# In[13]:
 
 #Trains the Multi Layer Perceptron model.
 def train_multi_layer_perceptron(train_X,train_Y):
@@ -322,7 +302,7 @@ def train_multi_layer_perceptron(train_X,train_Y):
     return model
 
 
-# In[15]:
+# In[14]:
 
 def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
     
@@ -334,7 +314,7 @@ def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
 
 # # Decision Tree
 
-# In[16]:
+# In[15]:
 
 #Trains the Decision Tree model. Performing a grid search to select the optimal parameter values
 def train_decision_tree(train_X,train_Y):
@@ -343,11 +323,10 @@ def train_decision_tree(train_X,train_Y):
     param = decision_tree_parameters({'max_depth':[6,9,12,15,20],'criterion':['gini','entropy'],})
     model_cv = grid_search.GridSearchCV(model, param)
     model_cv.fit(train_X,train_Y)
-    print('DT')
     return model_cv
 
 
-# In[17]:
+# In[16]:
 
 def cross_val_decision_tree(cross_val_X,cross_val_Y):
     
@@ -357,7 +336,7 @@ def cross_val_decision_tree(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[18]:
+# In[17]:
 
 def decision_tree_parameters(parameters_decision_tree={}):
     
@@ -367,7 +346,7 @@ def decision_tree_parameters(parameters_decision_tree={}):
 
 # # Random Forest
 
-# In[19]:
+# In[18]:
 
 #Trains the Random Forest model. Performing a grid search to select the optimal parameter values
 def train_random_forest(train_X,train_Y):
@@ -376,11 +355,10 @@ def train_random_forest(train_X,train_Y):
     param = random_forest_parameters({'max_depth':[6,9,12,15,20],'n_estimators':[5,10,15,20]})
     model_cv = grid_search.GridSearchCV(model, param)
     model_cv.fit(train_X,train_Y)
-    print('RF')
     return model_cv
 
 
-# In[20]:
+# In[19]:
 
 def cross_val_random_forest(cross_val_X,cross_val_Y):
     
@@ -390,7 +368,7 @@ def cross_val_random_forest(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[21]:
+# In[20]:
 
 def random_forest_parameters(parameters_random_forest={}):
     
@@ -400,7 +378,7 @@ def random_forest_parameters(parameters_random_forest={}):
 
 # # Linear Regression
 
-# In[22]:
+# In[21]:
 
 #Trains the Linear Regression model. Performing a grid search to select the optimal parameter values
 def train_linear_regression(train_X,train_Y):
@@ -411,11 +389,10 @@ def train_linear_regression(train_X,train_Y):
     param = linear_regression_parameters()
     model_cv = grid_search.GridSearchCV(model, param)
     model_cv.fit(train_X,train_Y)
-    print('LR')
     return model_cv
 
 
-# In[23]:
+# In[22]:
 
 def cross_val_linear_regression(cross_val_X,cross_val_Y):
     
@@ -425,7 +402,7 @@ def cross_val_linear_regression(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[24]:
+# In[23]:
 
 def linear_regression_parameters(parameters_linear_regression={}):
     
@@ -435,7 +412,7 @@ def linear_regression_parameters(parameters_linear_regression={}):
 
 # # Losgistic Regression (L1)
 
-# In[25]:
+# In[24]:
 
 #Trains the Logistic Regression (L2) model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression_L1(train_X,train_Y):
@@ -446,11 +423,10 @@ def train_logistic_regression_L1(train_X,train_Y):
     param = logistic_regression_L1_parameters({'penalty':['l1'],'C':[0.0001,0.001,0.01,0.1,1,10,100,100]})
     model_cv = grid_search.GridSearchCV(model, param)
     model_cv.fit(train_X,train_Y)
-    print('L1')
     return model_cv
 
 
-# In[26]:
+# In[25]:
 
 def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
     
@@ -460,7 +436,7 @@ def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[27]:
+# In[26]:
 
 def logistic_regression_L1_parameters(parameters_logistic_regression_L1={}):
     
@@ -470,7 +446,7 @@ def logistic_regression_L1_parameters(parameters_logistic_regression_L1={}):
 
 # # Logistic Regression (L2)
 
-# In[28]:
+# In[27]:
 
 #Trains the Logistic Regression (L2) model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression_L2(train_X,train_Y):
@@ -479,13 +455,12 @@ def train_logistic_regression_L2(train_X,train_Y):
     #Scaling the data
     train_X = preprocessing.StandardScaler().fit_transform(train_X)
     param = logistic_regression_L2_parameters({'penalty':['l2'],'C':[0.0001,0.001,0.01,0.1,1,10,100,100]})
-    model_cv = grid_search.GridSearchCV(model, param,cv=5)
+    model_cv = grid_search.GridSearchCV(model, param)
     model_cv.fit(train_X,train_Y)
-    print('L2')
     return model_cv
 
 
-# In[29]:
+# In[28]:
 
 def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
     
@@ -495,7 +470,7 @@ def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[30]:
+# In[29]:
 
 def logistic_regression_L2_parameters(parameters_logistic_regression_L2={}):
     
@@ -505,7 +480,7 @@ def logistic_regression_L2_parameters(parameters_logistic_regression_L2={}):
 
 # # Weighted Average
 
-# In[31]:
+# In[30]:
 
 #Perfroms weighted average of the predictions of the base models.
 def weighted_average(data_frame_predictions, cross_val_Y,weight):
@@ -515,7 +490,7 @@ def weighted_average(data_frame_predictions, cross_val_Y,weight):
     return [auc,weighted_avg_predictions]  
 
 
-# In[32]:
+# In[31]:
 
 #Defining the objective. Appropriate weights need to be calculated to minimize the loss.
 def objective_weighted_average(space):
@@ -531,7 +506,7 @@ def objective_weighted_average(space):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[33]:
+# In[32]:
 
 #Assigning the weights that need to be checked, for minimizing the objective (Loss)
 def assign_space_weighted_average():
@@ -549,7 +524,7 @@ def assign_space_weighted_average():
     return space
 
 
-# In[34]:
+# In[33]:
 
 #Function that finds the best possible combination of weights for performing the weighted predictions.
 def get_weights():
@@ -573,25 +548,69 @@ def get_weights():
 
 # # Stacking
 
-# In[35]:
+# In[34]:
 
 #Trains the Stacking model (Gradient Boosting - XGBoost)
 def train_stack_model(train_X,train_Y):
     
-    model = xgb.Booster()
-    param = param_sett()
-    dtrain = xgb.DMatrix(train_X,label = train_Y)
-    model = xgb.train(param, dtrain)
+    model = gradient_boosting_parameters(train_X,train_Y,objective_stack)
     return model
 
 
-# In[36]:
+# In[35]:
 
 def cross_val_stack(cross_val_X,cross_val_Y):
 
     predict = stack.predict(xgb.DMatrix(cross_val_X,label = cross_val_Y))
     auc = roc_auc_score(cross_val_Y,predict)
     return [auc,predict]
+
+
+# In[36]:
+
+#This function calculates the loss for different parameter values and is used to determine the most optimum 
+#parameter values
+def objective_stack(space_gradient_boosting):
+    
+    #Gradient Boosting (XGBoost)
+    param = {}
+    #Setting Parameters for the Booster
+    param['booster'] = space_gradient_boosting['booster']
+    param['objective'] = 'binary:logistic'
+    param["eval_metric"] = "auc"
+    param['eta'] = space_gradient_boosting['eta']
+    param['gamma'] = space_gradient_boosting['gamma']
+    param['max_depth'] = space_gradient_boosting['max_depth']
+    param['min_child_weight'] = space_gradient_boosting['min_child_weight']
+    param['max_delta_step'] = space_gradient_boosting['max_delta_step']
+    param['subsample'] = space_gradient_boosting['subsample']
+    param['colsample_bytree'] = space_gradient_boosting['colsample_bytree']
+    param['silent'] = space_gradient_boosting['silent']
+    param['seed'] = space_gradient_boosting['seed']
+    param['base_score'] = space_gradient_boosting['base_score']
+    param['lambda_bias'] = space_gradient_boosting['lambda_bias']
+    param['lambda'] = space_gradient_boosting['lambda']
+    
+    model = xgb.Booster()
+    auc_list = list()
+    
+    #Declared train_X as a global variable, unable to pass it as a parameter
+    #Performing cross validation.
+    skf=StratifiedKFold(stack_Y, n_folds=3)
+    for train_index, cross_val_index in skf:
+        
+        xgb_train_X, xgb_cross_val_X = stack_X.iloc[train_index],stack_X.iloc[cross_val_index]
+        xgb_train_Y, xgb_cross_val_Y = stack_Y.iloc[train_index],stack_Y.iloc[cross_val_index]
+        
+        dtrain = xgb.DMatrix(xgb_train_X, label = xgb_train_Y)
+        model = xgb.train(param, dtrain)
+        
+        predict = model.predict(xgb.DMatrix(xgb_cross_val_X, label = xgb_cross_val_Y))
+        auc_list.append(roc_auc_score(xgb_cross_val_Y,predict))
+    
+    #Calculating the AUC and returning the loss, which will be minimised by selecting the optimum parameters.
+    auc = np.mean(auc_list)
+    return{'loss':1-auc, 'status': STATUS_OK }
 
 
 # # Blending
@@ -601,10 +620,7 @@ def cross_val_stack(cross_val_X,cross_val_Y):
 #Trains the blending model (Gradient Boosting - XGBoost)
 def train_blend_model(train_X,train_Y): 
     
-    model = xgb.Booster()
-    param = param_sett()
-    dtrain = xgb.DMatrix(train_X,label = train_Y)
-    model = xgb.train(param, dtrain)
+    model = gradient_boosting_parameters(train_X,train_Y,objective_blend)
     return model
 
 
@@ -618,6 +634,53 @@ def cross_val_blend(cross_val_X,cross_val_Y):
 
 
 # In[39]:
+
+#This function calculates the loss for different parameter values and is used to determine the most optimum 
+#parameter values
+def objective_blend(space_gradient_boosting):
+    
+    #Gradient Boosting (XGBoost)
+    param = {}
+    #Setting Parameters for the Booster
+    param['booster'] = space_gradient_boosting['booster']
+    param['objective'] = 'binary:logistic'
+    param["eval_metric"] = "auc"
+    param['eta'] = space_gradient_boosting['eta']
+    param['gamma'] = space_gradient_boosting['gamma']
+    param['max_depth'] = space_gradient_boosting['max_depth']
+    param['min_child_weight'] = space_gradient_boosting['min_child_weight']
+    param['max_delta_step'] = space_gradient_boosting['max_delta_step']
+    param['subsample'] = space_gradient_boosting['subsample']
+    param['colsample_bytree'] = space_gradient_boosting['colsample_bytree']
+    param['silent'] = space_gradient_boosting['silent']
+    param['seed'] = space_gradient_boosting['seed']
+    param['base_score'] = space_gradient_boosting['base_score']
+    param['lambda_bias'] = space_gradient_boosting['lambda_bias']
+    param['lambda'] = space_gradient_boosting['lambda']
+    
+    model = xgb.Booster()
+    auc_list = list()
+    
+    #Declared train_X as a global variable, unable to pass it as a parameter
+    #Performing cross validation.
+    skf=StratifiedKFold(stack_Y, n_folds=3)
+    for train_index, cross_val_index in skf:
+        
+        xgb_train_X, xgb_cross_val_X = blend_X.iloc[train_index],blend_X.iloc[cross_val_index]
+        xgb_train_Y, xgb_cross_val_Y = stack_Y.iloc[train_index],stack_Y.iloc[cross_val_index]
+        
+        dtrain = xgb.DMatrix(xgb_train_X, label = xgb_train_Y)
+        model = xgb.train(param, dtrain)
+        
+        predict = model.predict(xgb.DMatrix(xgb_cross_val_X, label = xgb_cross_val_Y))
+        auc_list.append(roc_auc_score(xgb_cross_val_Y,predict))
+    
+    #Calculating the AUC and returning the loss, which will be minimised by selecting the optimum parameters.
+    auc = np.mean(auc_list)
+    return{'loss':1-auc, 'status': STATUS_OK }
+
+
+# In[40]:
 
 def metric_initialize():
     
@@ -645,7 +708,7 @@ def metric_initialize():
     metric_blending = list()
 
 
-# In[40]:
+# In[41]:
 
 #The list of base model functions (Training).
 train_base_model_list = [train_gradient_boosting,train_multi_layer_perceptron,train_decision_tree,train_random_forest,
@@ -662,7 +725,7 @@ cross_val_second_level_model = [cross_val_stack,cross_val_blend]
 
 # # Base Model Predictions
 
-# In[41]:
+# In[42]:
 
 def train_cross_val_base_models():
     
@@ -675,6 +738,7 @@ def train_cross_val_base_models():
     global train_Y
     train_Y = train['y']
     train_X = train.drop(['y'],axis=1)
+    
     global cross_val_X
     global cross_val_Y
     cross_val_Y = cross_val['y']
@@ -765,7 +829,7 @@ def train_cross_val_base_models():
 
 
 
-# In[42]:
+# In[43]:
 
 def print_metric_cross_val(n):
     
@@ -792,7 +856,7 @@ def print_metric_cross_val(n):
     
 
 
-# In[43]:
+# In[44]:
 
 def train_stack_blend():
     
@@ -810,7 +874,7 @@ def train_stack_blend():
     
 
 
-# In[44]:
+# In[45]:
 
 def print_metric_test(n):
     
@@ -831,7 +895,7 @@ def print_metric_test(n):
 
 # # Testing the Base and Second Level Models on the Test Dataset
 
-# In[45]:
+# In[46]:
 
 def test_data():
     
@@ -917,12 +981,12 @@ def test_data():
     
 
 
-# In[46]:
-
-sample_generation(1)#Time Of Completion : 1 MIN : 30 SECONDS
-
-
 # In[47]:
+
+sample_generation(1)#Time Of Completion : 4 MIN : 00 SECONDS
+
+
+# In[48]:
 
 #(Parallel(n_jobs=-1)(delayed(sample_generation)(n) for n in range(4)))
 
