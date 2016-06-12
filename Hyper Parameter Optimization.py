@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import datasets, linear_model, preprocessing, grid_search
-from sklearn.preprocessing import Imputer, PolynomialFeatures
+from sklearn.preprocessing import Imputer, PolynomialFeatures, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cross_validation import KFold
 from sklearn.ensemble import RandomForestClassifier
@@ -20,6 +20,7 @@ import xgboost as xgb
 from sklearn.metrics import roc_auc_score
 from sklearn.cross_validation import train_test_split
 from joblib import Parallel, delayed
+from sklearn.pipeline import Pipeline
 from hyperopt import hp, fmin, tpe, STATUS_OK, Trials 
 from hyperas import optim
 from hyperas.distributions import choice, uniform, conditional
@@ -132,9 +133,9 @@ def param_set_XGBoost():
     param['booster'] = ['gbtree','gblinear']
     param['objective'] = ['binary:logistic']
     param["eval_metric"] = ["auc"]
-    param['eta'] = [0.1,0.3,0.5,0.7,0.9]
+    param['eta'] = [0.1,0.3,0.5,0.7,0.9,1]
     param['gamma'] = [0,1,5,10]
-    param['max_depth'] = [6,9,12,15,18,21]
+    param['max_depth'] = [6,9,12,15,18,21,30]
     param['min_child_weight'] = [1,5,10]
     param['max_delta_step'] = [0,1,10]
     param['subsample'] = [0.5,1]
@@ -319,11 +320,11 @@ def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
 #Trains the Decision Tree model. Performing a grid search to select the optimal parameter values
 def train_decision_tree(train_X,train_Y):
     
-    model = DecisionTreeClassifier()
-    param = decision_tree_parameters({'max_depth':[6,9,12,15,20],'criterion':['gini','entropy'],})
-    model_cv = grid_search.GridSearchCV(model, param)
-    model_cv.fit(train_X,train_Y)
-    return model_cv
+    pipeline_model = Pipeline([('dtc', DecisionTreeClassifier())])
+    param = {'dtc__max_depth':[6,9,12,15,20],'dtc__criterion':['gini','entropy'],}       
+    model_gs = grid_search.GridSearchCV(pipeline_model, param,scoring='roc_auc')
+    model_gs.fit(train_X,train_Y)
+    return model_gs
 
 
 # In[16]:
@@ -338,10 +339,10 @@ def cross_val_decision_tree(cross_val_X,cross_val_Y):
 
 # In[17]:
 
-def decision_tree_parameters(parameters_decision_tree={}):
+#def decision_tree_parameters(parameters_decision_tree={}):
     
-    param = parameters_decision_tree
-    return param
+    #param = parameters_decision_tree
+    #return param
 
 
 # # Random Forest
@@ -351,11 +352,11 @@ def decision_tree_parameters(parameters_decision_tree={}):
 #Trains the Random Forest model. Performing a grid search to select the optimal parameter values
 def train_random_forest(train_X,train_Y):
     
-    model = RandomForestClassifier()
-    param = random_forest_parameters({'max_depth':[6,9,12,15,20],'n_estimators':[5,10,15,20]})
-    model_cv = grid_search.GridSearchCV(model, param)
-    model_cv.fit(train_X,train_Y)
-    return model_cv
+    pipeline_model = Pipeline([('rfc', RandomForestClassifier())]) 
+    param = {'rfc__max_depth':[6,9,12,15,20],'rfc__n_estimators':[5,10,15,20]}
+    model_gs = grid_search.GridSearchCV(pipeline_model, param, scoring='roc_auc')
+    model_gs.fit(train_X,train_Y)
+    return model_gs
 
 
 # In[19]:
@@ -370,10 +371,10 @@ def cross_val_random_forest(cross_val_X,cross_val_Y):
 
 # In[20]:
 
-def random_forest_parameters(parameters_random_forest={}):
+#def random_forest_parameters(parameters_random_forest={}):
     
-    param = parameters_random_forest
-    return param
+    #param = parameters_random_forest
+    #return param
 
 
 # # Linear Regression
@@ -383,13 +384,12 @@ def random_forest_parameters(parameters_random_forest={}):
 #Trains the Linear Regression model. Performing a grid search to select the optimal parameter values
 def train_linear_regression(train_X,train_Y):
     
-    model = linear_model.LinearRegression()
-    #Scaling the data
-    train_X = preprocessing.StandardScaler().fit_transform(train_X)
-    param = linear_regression_parameters()
-    model_cv = grid_search.GridSearchCV(model, param)
-    model_cv.fit(train_X,train_Y)
-    return model_cv
+    pipeline_model = Pipeline([('scl', StandardScaler()),('lr', linear_model.LinearRegression())]) 
+    param = {'lr__normalize':[True,False]}
+    train_X=StandardScaler().fit_transform(train_X)
+    model_gs = grid_search.GridSearchCV(pipeline_model, param, scoring='roc_auc')
+    model_gs.fit(train_X,train_Y)
+    return model_gs
 
 
 # In[22]:
@@ -404,10 +404,10 @@ def cross_val_linear_regression(cross_val_X,cross_val_Y):
 
 # In[23]:
 
-def linear_regression_parameters(parameters_linear_regression={}):
+#def linear_regression_parameters(parameters_linear_regression={}):
     
-    param = parameters_linear_regression
-    return param
+    #param = parameters_linear_regression
+    #return param
 
 
 # # Losgistic Regression (L1)
@@ -416,14 +416,13 @@ def linear_regression_parameters(parameters_linear_regression={}):
 
 #Trains the Logistic Regression (L2) model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression_L1(train_X,train_Y):
-    
-    model = linear_model.LogisticRegression()
-    #Scaling the data
-    train_X = preprocessing.StandardScaler().fit_transform(train_X)
-    param = logistic_regression_L1_parameters({'penalty':['l1'],'C':[0.0001,0.001,0.01,0.1,1,10,100,100]})
-    model_cv = grid_search.GridSearchCV(model, param)
-    model_cv.fit(train_X,train_Y)
-    return model_cv
+
+    pipeline_model = Pipeline([('scl', StandardScaler()),('l1', linear_model.LogisticRegression())]) 
+    param = {'l1__penalty':['l1'],'l1__C':[0.0001,0.001,0.01,0.1,1,10,100,100]}
+    train_X=StandardScaler().fit_transform(train_X)
+    model_gs = grid_search.GridSearchCV(pipeline_model, param, scoring='roc_auc')
+    model_gs.fit(train_X,train_Y)
+    return model_gs
 
 
 # In[25]:
@@ -438,10 +437,10 @@ def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
 
 # In[26]:
 
-def logistic_regression_L1_parameters(parameters_logistic_regression_L1={}):
+#def logistic_regression_L1_parameters(parameters_logistic_regression_L1={}):
     
-    param = parameters_logistic_regression_L1
-    return param
+    #param = parameters_logistic_regression_L1
+    #return param
 
 
 # # Logistic Regression (L2)
@@ -451,13 +450,12 @@ def logistic_regression_L1_parameters(parameters_logistic_regression_L1={}):
 #Trains the Logistic Regression (L2) model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression_L2(train_X,train_Y):
     
-    model = linear_model.LogisticRegression()
-    #Scaling the data
-    train_X = preprocessing.StandardScaler().fit_transform(train_X)
-    param = logistic_regression_L2_parameters({'penalty':['l2'],'C':[0.0001,0.001,0.01,0.1,1,10,100,100]})
-    model_cv = grid_search.GridSearchCV(model, param)
-    model_cv.fit(train_X,train_Y)
-    return model_cv
+    pipeline_model = Pipeline([('scl', StandardScaler()),('l2', linear_model.LogisticRegression())]) 
+    param = {'l2__penalty':['l2'],'l2__C':[0.0001,0.001,0.01,0.1,1,10,100,100]}
+    train_X=StandardScaler().fit_transform(train_X)
+    model_gs = grid_search.GridSearchCV(pipeline_model, param, scoring='roc_auc')
+    model_gs.fit(train_X,train_Y)
+    return model_gs
 
 
 # In[28]:
@@ -472,10 +470,10 @@ def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
 
 # In[29]:
 
-def logistic_regression_L2_parameters(parameters_logistic_regression_L2={}):
+#def logistic_regression_L2_parameters(parameters_logistic_regression_L2={}):
     
-    param = parameters_logistic_regression_L2
-    return param
+    #param = parameters_logistic_regression_L2
+    #return param
 
 
 # # Weighted Average
@@ -988,9 +986,4 @@ sample_generation(1)#Time Taken For Completion : 2 MIN : 45 SECONDS
 # In[48]:
 
 #(Parallel(n_jobs=-1)(delayed(sample_generation)(n) for n in range(4)))
-
-
-# In[ ]:
-
-
 
