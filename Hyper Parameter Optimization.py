@@ -295,11 +295,7 @@ def cross_val_gradient_boosting(cross_val_X,cross_val_Y):
 #Trains the Multi Layer Perceptron model.
 def train_multi_layer_perceptron(train_X,train_Y):
     
-    model = Sequential()
-    model.add(Dense(output_dim = 64, input_dim = train_X.shape[1], init = 'uniform', activation = 'sigmoid'))
-    model.add(Dense(output_dim = 1, input_dim = 64,activation = 'sigmoid',))
-    model.compile(optimizer = 'rmsprop',loss = 'binary_crossentropy',metrics = ['accuracy'])
-    model.fit(train_X.as_matrix(), train_Y.as_matrix(), nb_epoch = 5, batch_size = 128)
+    model = multi_layer_perceptron_parameters(train_X,train_Y,objective_multi_layer_perceptron)
     return model
 
 
@@ -313,9 +309,129 @@ def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
+# In[15]:
+
+#Defining the parameters for the XGBoost (Gradient Boosting) Algorithm.
+def param_set_multi_layer_perceptron():
+    
+    param={}
+    param['dim_layer'] = [32,64]
+    param['activation_layer_1'] = ['sigmoid','linear']
+    param['init_layer_1'] = ['normal','uniform']
+    param['activation_layer_2'] = ['sigmoid','linear']
+    param['optimizer'] = ['rmsprop']
+    
+    return param
+    
+
+
+# In[16]:
+
+#Assigning the values of the multi layer perceptron parameters that need to be checked, 
+#for minimizing the objective (loss). 
+#The values that give the most optimum results will be picked to train the model.
+def assign_space_multi_layer_perceptron():
+    
+    parameter_multi_layer_perceptron = param_set_multi_layer_perceptron()
+    space_multi_layer_perceptron ={
+        
+        'dim_layer': hp.choice('dim_layer', parameter_multi_layer_perceptron['dim_layer']),
+        
+        'activation_layer_1': hp.choice('activation_layer_1', parameter_multi_layer_perceptron['activation_layer_1']),
+        
+        'init_layer_1': hp.choice('init_layer_1', parameter_multi_layer_perceptron['init_layer_1']),
+        
+        'activation_layer_2': hp.choice('activation_layer_2', parameter_multi_layer_perceptron['activation_layer_2']),
+        
+        'optimizer': hp.choice('optimizer', parameter_multi_layer_perceptron['optimizer']),
+        
+        
+    }
+    
+    return space_multi_layer_perceptron
+
+
+# In[17]:
+
+#This function calculates the loss for different parameter values and is used to determine the most optimum 
+#parameter values
+def objective_multi_layer_perceptron(space_multi_layer_perceptron):
+    
+    #Setting Parameters for the MLP model.
+    dim_layer = space_multi_layer_perceptron['dim_layer']
+    activation_layer_1 = space_multi_layer_perceptron['activation_layer_1']
+    init_layer_1 = space_multi_layer_perceptron['init_layer_1']
+    activation_layer_2 = space_multi_layer_perceptron['activation_layer_2']
+    optimizer = space_multi_layer_perceptron['optimizer']
+
+    
+    auc_list = list()
+    
+    #Declared train_X as a global variable, unable to pass it as a parameter
+    #Performing cross validation.
+    skf=StratifiedKFold(train_Y, n_folds = 3)
+    for train_index, cross_val_index in skf:
+        
+        mlp_train_X, mlp_cross_val_X = train_X.iloc[train_index],train_X.iloc[cross_val_index]
+        mlp_train_Y, mlp_cross_val_Y = train_Y.iloc[train_index],train_Y.iloc[cross_val_index]
+        mlp_train_X = mlp_train_X.as_matrix()
+        mlp_train_Y = mlp_train_Y.as_matrix()
+        
+        model = Sequential()
+        model.add(Dense(output_dim = dim_layer, input_dim = train_X.shape[1], init = init_layer_1
+                        , activation = activation_layer_1))
+        model.add(Dense(output_dim = 1, input_dim = dim_layer,activation = activation_layer_2))
+        model.compile(optimizer = optimizer,loss = 'binary_crossentropy',metrics = ['accuracy'])
+        model.fit(mlp_train_X, mlp_train_Y, nb_epoch = 1, batch_size = 256)
+        
+        predict = model.predict_on_batch(mlp_cross_val_X)
+        auc_list.append(roc_auc_score(mlp_cross_val_Y,predict))
+    
+    #Calculating the AUC and returning the loss, which will be minimised by selecting the optimum parameters.
+    auc = np.mean(auc_list)
+    return{'loss':1-auc, 'status': STATUS_OK }
+
+
+# In[18]:
+
+#Using the loss values, this function picks the optimum parameter values. These values will be used 
+#for training the model
+def multi_layer_perceptron_parameters(train_X,train_Y,obj):
+    
+    space_multi_layer_perceptron = assign_space_multi_layer_perceptron()
+    trials = Trials()
+    
+    best = fmin(fn = obj,
+    space = space_multi_layer_perceptron,
+    algo = tpe.suggest,
+    max_evals = 5,
+    trials = trials)
+    
+    parameter_multi_layer_perceptron = param_set_multi_layer_perceptron()
+    optimal_param={}
+    
+    #Best is a dictionary that contains the indices of the optimal parameter values.
+    #The following for loop uses these indices to obtain the parameter values, these values are stored in a
+    #dictionary - optimal_param
+    for key in best:
+        optimal_param[key] = parameter_multi_layer_perceptron[key][best[key]]
+    
+    #Training the model with the optimal parameter values
+    model = Sequential()
+    model.add(Dense(output_dim = optimal_param['dim_layer'] , 
+                    input_dim = train_X.shape[1], init = optimal_param['init_layer_1'], 
+                    activation = optimal_param['activation_layer_1']))
+    model.add(Dense(output_dim = 1, input_dim = optimal_param['dim_layer'],
+                    activation = optimal_param['activation_layer_2']))
+    model.compile(optimizer = optimal_param['optimizer'],loss = 'binary_crossentropy',metrics = ['accuracy'])
+    model.fit(train_X.as_matrix(), train_Y.as_matrix(), nb_epoch = 5, batch_size = 128)
+    
+    return model
+
+
 # # Decision Tree
 
-# In[15]:
+# In[19]:
 
 #Trains the Decision Tree model. Performing a grid search to select the optimal parameter values
 def train_decision_tree(train_X,train_Y):
@@ -327,7 +443,7 @@ def train_decision_tree(train_X,train_Y):
     return model_gs
 
 
-# In[16]:
+# In[20]:
 
 def cross_val_decision_tree(cross_val_X,cross_val_Y):
     
@@ -337,7 +453,7 @@ def cross_val_decision_tree(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[17]:
+# In[21]:
 
 #def decision_tree_parameters(parameters_decision_tree={}):
     
@@ -347,7 +463,7 @@ def cross_val_decision_tree(cross_val_X,cross_val_Y):
 
 # # Random Forest
 
-# In[18]:
+# In[22]:
 
 #Trains the Random Forest model. Performing a grid search to select the optimal parameter values
 def train_random_forest(train_X,train_Y):
@@ -359,7 +475,7 @@ def train_random_forest(train_X,train_Y):
     return model_gs
 
 
-# In[19]:
+# In[23]:
 
 def cross_val_random_forest(cross_val_X,cross_val_Y):
     
@@ -369,7 +485,7 @@ def cross_val_random_forest(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[20]:
+# In[24]:
 
 #def random_forest_parameters(parameters_random_forest={}):
     
@@ -379,7 +495,7 @@ def cross_val_random_forest(cross_val_X,cross_val_Y):
 
 # # Linear Regression
 
-# In[21]:
+# In[25]:
 
 #Trains the Linear Regression model. Performing a grid search to select the optimal parameter values
 def train_linear_regression(train_X,train_Y):
@@ -392,7 +508,7 @@ def train_linear_regression(train_X,train_Y):
     return model_gs
 
 
-# In[22]:
+# In[26]:
 
 def cross_val_linear_regression(cross_val_X,cross_val_Y):
     
@@ -402,7 +518,7 @@ def cross_val_linear_regression(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[23]:
+# In[27]:
 
 #def linear_regression_parameters(parameters_linear_regression={}):
     
@@ -412,7 +528,7 @@ def cross_val_linear_regression(cross_val_X,cross_val_Y):
 
 # # Losgistic Regression (L1)
 
-# In[24]:
+# In[28]:
 
 #Trains the Logistic Regression (L2) model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression_L1(train_X,train_Y):
@@ -425,7 +541,7 @@ def train_logistic_regression_L1(train_X,train_Y):
     return model_gs
 
 
-# In[25]:
+# In[29]:
 
 def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
     
@@ -435,7 +551,7 @@ def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[26]:
+# In[30]:
 
 #def logistic_regression_L1_parameters(parameters_logistic_regression_L1={}):
     
@@ -445,7 +561,7 @@ def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
 
 # # Logistic Regression (L2)
 
-# In[27]:
+# In[31]:
 
 #Trains the Logistic Regression (L2) model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression_L2(train_X,train_Y):
@@ -458,7 +574,7 @@ def train_logistic_regression_L2(train_X,train_Y):
     return model_gs
 
 
-# In[28]:
+# In[32]:
 
 def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
     
@@ -468,7 +584,7 @@ def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[29]:
+# In[33]:
 
 #def logistic_regression_L2_parameters(parameters_logistic_regression_L2={}):
     
@@ -478,7 +594,7 @@ def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
 
 # # Weighted Average
 
-# In[30]:
+# In[34]:
 
 #Perfroms weighted average of the predictions of the base models.
 def weighted_average(data_frame_predictions, cross_val_Y):
@@ -488,7 +604,7 @@ def weighted_average(data_frame_predictions, cross_val_Y):
     return [auc,weighted_avg_predictions]  
 
 
-# In[31]:
+# In[35]:
 
 #Defining the objective. Appropriate weights need to be calculated to minimize the loss.
 def objective_weighted_average(space):
@@ -504,7 +620,7 @@ def objective_weighted_average(space):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[32]:
+# In[36]:
 
 #Assigning the weights that need to be checked, for minimizing the objective (Loss)
 def assign_space_weighted_average():
@@ -522,7 +638,7 @@ def assign_space_weighted_average():
     return space
 
 
-# In[33]:
+# In[37]:
 
 #Function that finds the best possible combination of weights for performing the weighted predictions.
 def get_weights():
@@ -546,7 +662,7 @@ def get_weights():
 
 # # Stacking
 
-# In[34]:
+# In[38]:
 
 #Trains the Stacking model (Gradient Boosting - XGBoost)
 def train_stack_model(train_X,train_Y):
@@ -555,7 +671,7 @@ def train_stack_model(train_X,train_Y):
     return model
 
 
-# In[35]:
+# In[39]:
 
 def cross_val_stack(cross_val_X,cross_val_Y):
 
@@ -564,7 +680,7 @@ def cross_val_stack(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[36]:
+# In[40]:
 
 #This function calculates the loss for different parameter values and is used to determine the most optimum 
 #parameter values
@@ -613,7 +729,7 @@ def objective_stack(space_gradient_boosting):
 
 # # Blending
 
-# In[37]:
+# In[41]:
 
 #Trains the blending model (Gradient Boosting - XGBoost)
 def train_blend_model(train_X,train_Y): 
@@ -622,7 +738,7 @@ def train_blend_model(train_X,train_Y):
     return model
 
 
-# In[38]:
+# In[42]:
 
 def cross_val_blend(cross_val_X,cross_val_Y):
 
@@ -631,7 +747,7 @@ def cross_val_blend(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[39]:
+# In[43]:
 
 #This function calculates the loss for different parameter values and is used to determine the most optimum 
 #parameter values
@@ -678,7 +794,7 @@ def objective_blend(space_gradient_boosting):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[40]:
+# In[44]:
 
 def metric_initialize():
     
@@ -706,7 +822,7 @@ def metric_initialize():
     metric_blending = list()
 
 
-# In[41]:
+# In[45]:
 
 #The list of base model functions (Training).
 train_base_model_list = [train_gradient_boosting,train_multi_layer_perceptron,train_decision_tree,train_random_forest,
@@ -723,7 +839,7 @@ cross_val_second_level_model = [cross_val_stack,cross_val_blend,weighted_average
 
 # # Base Model Predictions
 
-# In[42]:
+# In[46]:
 
 def train_cross_val_base_models():
     
@@ -819,7 +935,7 @@ def train_cross_val_base_models():
     stack_Y = cross_val_Y  
 
 
-# In[43]:
+# In[47]:
 
 def print_metric_cross_val(n):
     
@@ -844,7 +960,7 @@ def print_metric_cross_val(n):
     print('\nEnd Cross Validation Sample',n,'\n') 
 
 
-# In[44]:
+# In[48]:
 
 #Running the second level models parallely
 def train_second_level_models():
@@ -871,7 +987,7 @@ def train_second_level_models():
     print (' AUC (Weighted Average)\n',metric_weighted_average)
 
 
-# In[45]:
+# In[49]:
 
 def print_metric_test(n):
     
@@ -892,7 +1008,7 @@ def print_metric_test(n):
 
 # # Testing the Base and Second Level Models on the Test Dataset
 
-# In[46]:
+# In[50]:
 
 def test_data():
     
@@ -978,12 +1094,12 @@ def test_data():
     
 
 
-# In[47]:
+# In[51]:
 
 sample_generation(1)#Time Taken For Completion : 2 MIN : 45 SECONDS
 
 
-# In[48]:
+# In[52]:
 
 #(Parallel(n_jobs=-1)(delayed(sample_generation)(n) for n in range(4)))
 
