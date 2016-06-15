@@ -37,7 +37,6 @@ def Data_import():
     #Reading the data, into a Data Frame.
     Data = pd.read_csv('/home/prajwal/Desktop/bank-additional/bank-additional-full.csv',delimiter=';',header=0)
 
-    global names
     #Selcting the columns of string data type
     names = Data.select_dtypes(include = ['object'])
     
@@ -70,7 +69,7 @@ def perform_one_hot_encoding():
     
     global Data
     #Finding the one hot encoding for all columns excpet the target label column.
-    for column in names.drop(['y'],axis=1):
+    for column in columns:
     
         #Converting the data frame column to an array
         column_list = np.array(Data[column].tolist())
@@ -120,12 +119,48 @@ def binary_encode(column_names):
     Data = encoder.fit_transform(Data)
 
 
-# # Sample Generation
+# # Hashing Encoding
 
 # In[8]:
 
+def hashing_encode(column_names):
+    
+    global Data
+    #Encoding the data, encoding the string values into numerical values, using hashing method.
+    encoder = ce.HashingEncoder(verbose=1, n_components=128, cols=column_names)
+    Data = encoder.fit_transform(Data)
+
+
+# # Backward Difference Encoder
+
+# In[9]:
+
+def backward_difference_encode(column_names):
+    
+    global Data
+    #Encoding the data, encoding the string values into numerical values, using backward difference method.
+    encoder = ce.BackwardDifferenceEncoder(verbose=1, cols=column_names)
+    Data = encoder.fit_transform(Data)
+
+
+# # Helmert Encoding
+
+# In[10]:
+
+def helmert_encode(column_names):
+    
+    global Data
+    #Encoding the data, encoding the string values into numerical values, using helmert method.
+    encoder = ce.HelmertEncoder(verbose=1, cols=column_names)
+    Data = encoder.fit_transform(Data)
+
+
+# # Sample Generation
+
+# In[11]:
+
 #Performing training, cross validation and testing on different stratified splits of the data.
-def sample_generation_one_hot(n):
+def sample_generation_one_hot_encode(n):
     
     for i in range(n):
         Data_import()
@@ -141,7 +176,7 @@ def sample_generation_one_hot(n):
         print_metric_test(i)
 
 
-# In[9]:
+# In[12]:
 
 #Performing training, cross validation and testing on different stratified splits of the data.
 def sample_generation_label_encode(n):
@@ -159,15 +194,67 @@ def sample_generation_label_encode(n):
         print_metric_test(i)
 
 
-# In[ ]:
-
-
-
-
-# In[10]:
+# In[13]:
 
 #Performing training, cross validation and testing on different stratified splits of the data.
-def sample_generation_binary(n):
+def sample_generation_hashing_encode(n):
+    
+    for i in range(n):
+        Data_import()
+        hashing_encode(columns)
+        data_initialize()
+        data_split()
+        metric_initialize()
+        train_cross_val_base_models()
+        print_metric_cross_val(i)
+        train_second_level_models()
+        metric_initialize()
+        test_data()
+        print_metric_test(i)
+
+
+# In[14]:
+
+#Performing training, cross validation and testing on different stratified splits of the data.
+def sample_generation_backward_difference_encode(n):
+    
+    for i in range(n):
+        Data_import()
+        backward_difference_encode(columns)
+        data_initialize()
+        data_split()
+        metric_initialize()
+        train_cross_val_base_models()
+        print_metric_cross_val(i)
+        train_second_level_models()
+        metric_initialize()
+        test_data()
+        print_metric_test(i)
+
+
+# In[15]:
+
+#Performing training, cross validation and testing on different stratified splits of the data.
+def sample_generation_helmert_encode(n):
+    
+    for i in range(n):
+        Data_import()
+        helmert_encode(columns)
+        data_initialize()
+        data_split()
+        metric_initialize()
+        train_cross_val_base_models()
+        print_metric_cross_val(i)
+        train_second_level_models()
+        metric_initialize()
+        test_data()
+        print_metric_test(i)
+
+
+# In[16]:
+
+#Performing training, cross validation and testing on different stratified splits of the data.
+def sample_generation_binary_encode(n):
     
     for i in range(n):
         Data_import()
@@ -183,7 +270,7 @@ def sample_generation_binary(n):
         print_metric_test(i)
 
 
-# In[11]:
+# In[17]:
 
 #Splitting the data into training and testing datasets (Stratified Split)
 def data_split():
@@ -193,7 +280,7 @@ def data_split():
     Data, test = train_test_split(Data, test_size = 0.1, stratify = Data['y'])
 
 
-# In[12]:
+# In[18]:
 
 #This function is used to convert the predictions of the base models into a DataFrame.
 def build_data_frame(data):
@@ -202,7 +289,7 @@ def build_data_frame(data):
     return data_frame
 
 
-# In[13]:
+# In[19]:
 
 def data_initialize():
     
@@ -241,7 +328,7 @@ def data_initialize():
 
 # # Gradient Boosting (XGBoost)
 
-# In[14]:
+# In[20]:
 
 #Defining the parameters for the XGBoost (Gradient Boosting) Algorithm.
 def param_set_XGBoost():
@@ -268,7 +355,7 @@ def param_set_XGBoost():
     return param
 
 
-# In[15]:
+# In[21]:
 
 #Assigning the values of the XGBoost parameters that need to be checked, for minimizing the objective (loss).
 #The values that give the most optimum results will be picked to train the model.
@@ -308,7 +395,7 @@ def assign_space_gradient_boosting():
     return space_gradient_boosting
 
 
-# In[16]:
+# In[22]:
 
 #This function calculates the loss for different parameter values and is used to determine the most optimum 
 #parameter values
@@ -355,7 +442,7 @@ def objective_gradient_boosting(space_gradient_boosting):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[17]:
+# In[23]:
 
 #Using the loss values, this function picks the optimum parameter values. These values will be used 
 #for training the model
@@ -388,7 +475,7 @@ def gradient_boosting_parameters(train_X,train_Y,obj):
     return model
 
 
-# In[18]:
+# In[24]:
 
 #Trains the Gradient Boosting model.
 def train_gradient_boosting(train_X,train_Y):
@@ -398,7 +485,7 @@ def train_gradient_boosting(train_X,train_Y):
     
 
 
-# In[19]:
+# In[25]:
 
 def cross_val_gradient_boosting(cross_val_X,cross_val_Y):
     
@@ -409,7 +496,7 @@ def cross_val_gradient_boosting(cross_val_X,cross_val_Y):
 
 # # Multi Layer Perceptron
 
-# In[20]:
+# In[26]:
 
 #Trains the Multi Layer Perceptron model.
 def train_multi_layer_perceptron(train_X,train_Y):
@@ -418,7 +505,7 @@ def train_multi_layer_perceptron(train_X,train_Y):
     return model
 
 
-# In[21]:
+# In[27]:
 
 def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
     
@@ -428,7 +515,7 @@ def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[22]:
+# In[28]:
 
 #Defining the parameters for the XGBoost (Gradient Boosting) Algorithm.
 def param_set_multi_layer_perceptron():
@@ -444,7 +531,7 @@ def param_set_multi_layer_perceptron():
     
 
 
-# In[23]:
+# In[29]:
 
 #Assigning the values of the multi layer perceptron parameters that need to be checked, 
 #for minimizing the objective (loss). 
@@ -470,7 +557,7 @@ def assign_space_multi_layer_perceptron():
     return space_multi_layer_perceptron
 
 
-# In[24]:
+# In[30]:
 
 #This function calculates the loss for different parameter values and is used to determine the most optimum 
 #parameter values
@@ -511,7 +598,7 @@ def objective_multi_layer_perceptron(space_multi_layer_perceptron):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[25]:
+# In[31]:
 
 #Using the loss values, this function picks the optimum parameter values. These values will be used 
 #for training the model
@@ -550,7 +637,7 @@ def multi_layer_perceptron_parameters(train_X,train_Y,obj):
 
 # # Decision Tree
 
-# In[26]:
+# In[32]:
 
 #Trains the Decision Tree model. Performing a grid search to select the optimal parameter values
 def train_decision_tree(train_X,train_Y):
@@ -562,7 +649,7 @@ def train_decision_tree(train_X,train_Y):
     return model_gs
 
 
-# In[27]:
+# In[33]:
 
 def cross_val_decision_tree(cross_val_X,cross_val_Y):
     
@@ -572,7 +659,7 @@ def cross_val_decision_tree(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[28]:
+# In[34]:
 
 #def decision_tree_parameters(parameters_decision_tree={}):
     
@@ -582,7 +669,7 @@ def cross_val_decision_tree(cross_val_X,cross_val_Y):
 
 # # Random Forest
 
-# In[29]:
+# In[35]:
 
 #Trains the Random Forest model. Performing a grid search to select the optimal parameter values
 def train_random_forest(train_X,train_Y):
@@ -594,7 +681,7 @@ def train_random_forest(train_X,train_Y):
     return model_gs
 
 
-# In[30]:
+# In[36]:
 
 def cross_val_random_forest(cross_val_X,cross_val_Y):
     
@@ -604,7 +691,7 @@ def cross_val_random_forest(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[31]:
+# In[37]:
 
 #def random_forest_parameters(parameters_random_forest={}):
     
@@ -614,7 +701,7 @@ def cross_val_random_forest(cross_val_X,cross_val_Y):
 
 # # Linear Regression
 
-# In[32]:
+# In[38]:
 
 #Trains the Linear Regression model. Performing a grid search to select the optimal parameter values
 def train_linear_regression(train_X,train_Y):
@@ -627,7 +714,7 @@ def train_linear_regression(train_X,train_Y):
     return model_gs
 
 
-# In[33]:
+# In[39]:
 
 def cross_val_linear_regression(cross_val_X,cross_val_Y):
     
@@ -637,7 +724,7 @@ def cross_val_linear_regression(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[34]:
+# In[40]:
 
 #def linear_regression_parameters(parameters_linear_regression={}):
     
@@ -647,7 +734,7 @@ def cross_val_linear_regression(cross_val_X,cross_val_Y):
 
 # # Losgistic Regression (L1)
 
-# In[35]:
+# In[41]:
 
 #Trains the Logistic Regression (L2) model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression_L1(train_X,train_Y):
@@ -660,7 +747,7 @@ def train_logistic_regression_L1(train_X,train_Y):
     return model_gs
 
 
-# In[36]:
+# In[42]:
 
 def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
     
@@ -670,7 +757,7 @@ def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[37]:
+# In[43]:
 
 #def logistic_regression_L1_parameters(parameters_logistic_regression_L1={}):
     
@@ -680,7 +767,7 @@ def cross_val_logistic_regression_L1(cross_val_X,cross_val_Y):
 
 # # Logistic Regression (L2)
 
-# In[38]:
+# In[44]:
 
 #Trains the Logistic Regression (L2) model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression_L2(train_X,train_Y):
@@ -693,7 +780,7 @@ def train_logistic_regression_L2(train_X,train_Y):
     return model_gs
 
 
-# In[39]:
+# In[45]:
 
 def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
     
@@ -703,7 +790,7 @@ def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[40]:
+# In[46]:
 
 #def logistic_regression_L2_parameters(parameters_logistic_regression_L2={}):
     
@@ -713,7 +800,7 @@ def cross_val_logistic_regression_L2(cross_val_X,cross_val_Y):
 
 # # Weighted Average
 
-# In[41]:
+# In[47]:
 
 #Perfroms weighted average of the predictions of the base models.
 def weighted_average(data_frame_predictions, cross_val_Y):
@@ -723,7 +810,7 @@ def weighted_average(data_frame_predictions, cross_val_Y):
     return [auc,weighted_avg_predictions]  
 
 
-# In[42]:
+# In[48]:
 
 #Defining the objective. Appropriate weights need to be calculated to minimize the loss.
 def objective_weighted_average(space):
@@ -739,7 +826,7 @@ def objective_weighted_average(space):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[43]:
+# In[49]:
 
 #Assigning the weights that need to be checked, for minimizing the objective (Loss)
 def assign_space_weighted_average():
@@ -757,7 +844,7 @@ def assign_space_weighted_average():
     return space
 
 
-# In[44]:
+# In[50]:
 
 #Function that finds the best possible combination of weights for performing the weighted predictions.
 def get_weights():
@@ -781,7 +868,7 @@ def get_weights():
 
 # # Stacking
 
-# In[45]:
+# In[51]:
 
 #Trains the Stacking model (Gradient Boosting - XGBoost)
 def train_stack_model(train_X,train_Y):
@@ -790,7 +877,7 @@ def train_stack_model(train_X,train_Y):
     return model
 
 
-# In[46]:
+# In[52]:
 
 def cross_val_stack(cross_val_X,cross_val_Y):
 
@@ -799,7 +886,7 @@ def cross_val_stack(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[47]:
+# In[53]:
 
 #This function calculates the loss for different parameter values and is used to determine the most optimum 
 #parameter values
@@ -848,7 +935,7 @@ def objective_stack(space_gradient_boosting):
 
 # # Blending
 
-# In[48]:
+# In[54]:
 
 #Trains the blending model (Gradient Boosting - XGBoost)
 def train_blend_model(train_X,train_Y): 
@@ -857,7 +944,7 @@ def train_blend_model(train_X,train_Y):
     return model
 
 
-# In[49]:
+# In[55]:
 
 def cross_val_blend(cross_val_X,cross_val_Y):
 
@@ -866,7 +953,7 @@ def cross_val_blend(cross_val_X,cross_val_Y):
     return [auc,predict]
 
 
-# In[50]:
+# In[56]:
 
 #This function calculates the loss for different parameter values and is used to determine the most optimum 
 #parameter values
@@ -913,7 +1000,7 @@ def objective_blend(space_gradient_boosting):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[51]:
+# In[57]:
 
 def metric_initialize():
     
@@ -941,7 +1028,7 @@ def metric_initialize():
     metric_blending = list()
 
 
-# In[52]:
+# In[58]:
 
 #The list of base model functions (Training).
 train_base_model_list = [train_gradient_boosting,train_multi_layer_perceptron,train_decision_tree,train_random_forest,
@@ -958,7 +1045,7 @@ cross_val_second_level_model = [cross_val_stack,cross_val_blend,weighted_average
 
 # # Base Model Predictions
 
-# In[53]:
+# In[59]:
 
 def train_cross_val_base_models():
     
@@ -1056,7 +1143,7 @@ def train_cross_val_base_models():
     stack_Y = cross_val_Y  
 
 
-# In[54]:
+# In[60]:
 
 def print_metric_cross_val(n):
     
@@ -1081,7 +1168,7 @@ def print_metric_cross_val(n):
     print('\nEnd Cross Validation Sample',n,'\n') 
 
 
-# In[55]:
+# In[61]:
 
 #Running the second level models parallely
 def train_second_level_models():
@@ -1108,7 +1195,7 @@ def train_second_level_models():
     print (' AUC (Weighted Average)\n',metric_weighted_average)
 
 
-# In[56]:
+# In[62]:
 
 def print_metric_test(n):
     
@@ -1129,7 +1216,7 @@ def print_metric_test(n):
 
 # # Testing the Base and Second Level Models on the Test Dataset
 
-# In[57]:
+# In[63]:
 
 def test_data():
     
@@ -1215,28 +1302,49 @@ def test_data():
     
 
 
-# In[58]:
+# In[64]:
 
 print('ONE HOT ENCODING\n')
-sample_generation_one_hot(1)
+sample_generation_one_hot_encode(1)
 print('\nEND\n')
 
 
-# In[59]:
+# In[65]:
 
 print('LABEL ENCODING\n')
 sample_generation_label_encode(1)
 print('\nEND\n')
 
 
-# In[64]:
+# In[66]:
 
 print('BINARY ENCODING\n')
-sample_generation_binary(1)
+sample_generation_binary_encode(1)
 print('\nEND\n')
 
 
-# In[61]:
+# In[67]:
+
+print('HASHING ENCODING\n')
+sample_generation_hashing_encode(1)
+print('\nEND\n')
+
+
+# In[68]:
+
+print('BACKWARD DIFFERENCE ENCODING\n')
+sample_generation_backward_difference_encode(1)
+print('\nEND\n')
+
+
+# In[69]:
+
+print('HELMERT ENCODING\n')
+sample_generation_helmert_encode(1)
+print('\nEND\n')
+
+
+# In[70]:
 
 #(Parallel(n_jobs=-1)(delayed(sample_generation)(n) for n in range(4)))
 
