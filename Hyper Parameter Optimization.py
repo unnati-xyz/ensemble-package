@@ -14,7 +14,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.cross_validation import StratifiedKFold, KFold
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.decomposition import PCA
-from keras.layers import Dense, Activation
+from keras.layers import Dense, Activation, Dropout
 from keras.models import Sequential
 from keras.regularizers import l2, activity_l2
 import xgboost as xgb
@@ -26,7 +26,7 @@ from hyperopt import hp, fmin, tpe, STATUS_OK, Trials
 from hyperas import optim
 from hyperas.distributions import choice, uniform, conditional
 import category_encoders as ce
-import unittest
+np.random.seed(1338)
 
 
 # In[2]:
@@ -337,9 +337,10 @@ def sample_generation_polynomial_encode(n):
 #Splitting the data into training and testing datasets (Stratified Split)
 def data_split():
     
+
     global Data
     global test
-    Data, test = train_test_split(Data, test_size = 0.1, stratify = Data['y'])
+    Data, test = train_test_split(Data, test_size = 0.1, stratify = Data['y'],random_state = 0)
 
 
 # In[22]:
@@ -487,7 +488,7 @@ def objective_gradient_boosting(space_gradient_boosting):
     
     #Declared train_X as a global variable, unable to pass it as a parameter
     #Performing cross validation.
-    skf=StratifiedKFold(train_Y, n_folds=3)
+    skf=StratifiedKFold(train_Y, n_folds=3,random_state=0)
     for train_index, cross_val_index in skf:
         
         xgb_train_X, xgb_cross_val_X = train_X.iloc[train_index],train_X.iloc[cross_val_index]
@@ -570,11 +571,11 @@ def train_multi_layer_perceptron(train_X,train_Y):
 # In[31]:
 
 def cross_val_multi_layer_perceptron(cross_val_X,cross_val_Y):
-    
+
     global multi_layer_perceptron
     cross_val_X = StandardScaler().fit_transform(cross_val_X)
     
-    predict = multi_layer_perceptron.predict_on_batch(cross_val_X)
+    predict = multi_layer_perceptron.predict(cross_val_X)
     auc = roc_auc_score(cross_val_Y,predict)
     return [auc,predict]
 
@@ -586,10 +587,11 @@ def param_set_multi_layer_perceptron():
     
     param={}
     param['dim_layer'] = [32,64]
-    param['activation_layer_1'] = ['sigmoid','linear']
+    param['activation_layer_1'] = ['sigmoid','relu']
     param['init_layer_1'] = ['normal','uniform']
-    param['activation_layer_2'] = ['sigmoid','linear']
+    param['activation_layer_2'] = ['sigmoid','relu']
     param['optimizer'] = ['rmsprop']
+    param['dropout'] = [0.2,0.5]
     
     return param
     
@@ -615,6 +617,8 @@ def assign_space_multi_layer_perceptron():
         
         'optimizer': hp.choice('optimizer', parameter_multi_layer_perceptron['optimizer']),
         
+        'dropout': hp.choice('dropout', parameter_multi_layer_perceptron['dropout'])
+        
         
     }
     
@@ -633,13 +637,14 @@ def objective_multi_layer_perceptron(space_multi_layer_perceptron):
     init_layer_1 = space_multi_layer_perceptron['init_layer_1']
     activation_layer_2 = space_multi_layer_perceptron['activation_layer_2']
     optimizer = space_multi_layer_perceptron['optimizer']
+    dropout = space_multi_layer_perceptron['dropout']
 
     
-    auc_list = list()
+    acc_list = list()
     
     #Declared train_X as a global variable, unable to pass it as a parameter
     #Performing cross validation.
-    skf=StratifiedKFold(train_Y, n_folds = 3)
+    skf=StratifiedKFold(train_Y, n_folds = 3,random_state=0)
     for train_index, cross_val_index in skf:
         
         mlp_train_X, mlp_cross_val_X = train_X.iloc[train_index],train_X.iloc[cross_val_index]
@@ -653,16 +658,20 @@ def objective_multi_layer_perceptron(space_multi_layer_perceptron):
         model = Sequential()
         model.add(Dense(output_dim = dim_layer, input_dim = train_X.shape[1], init = init_layer_1
                         , activation = activation_layer_1))
-        model.add(Dense(output_dim = 1, input_dim = dim_layer,activation = activation_layer_2))
+        model.add(Dropout(dropout))
+        model.add(Dense(output_dim = 1,activation = activation_layer_2))
         model.compile(optimizer = optimizer,loss = 'binary_crossentropy',metrics = ['accuracy'])
-        model.fit(mlp_train_X, mlp_train_Y, nb_epoch = 1, batch_size = 256)
+        model.fit(mlp_train_X, mlp_train_Y, nb_epoch = 2, batch_size = 128,verbose=1)
+
+        #predict = model.predict(mlp_cross_val_X)
+        #auc_list.append(roc_auc_score(mlp_cross_val_Y,predict))
         
-        predict = model.predict_on_batch(mlp_cross_val_X)
-        auc_list.append(roc_auc_score(mlp_cross_val_Y,predict))
+        score = model.evaluate(mlp_cross_val_X, mlp_cross_val_Y, verbose=0)
+        acc_list.append(score[1])
     
     #Calculating the AUC and returning the loss, which will be minimised by selecting the optimum parameters.
-    auc = np.mean(auc_list)
-    return{'loss':1-auc, 'status': STATUS_OK }
+    acc = np.mean(acc_list)
+    return{'loss':1-acc, 'status': STATUS_OK }
 
 
 # In[35]:
@@ -695,10 +704,14 @@ def multi_layer_perceptron_parameters(train_X,train_Y,obj):
     model.add(Dense(output_dim = optimal_param['dim_layer'] , 
                     input_dim = train_X.shape[1], init = optimal_param['init_layer_1'], 
                     activation = optimal_param['activation_layer_1']))
-    model.add(Dense(output_dim = 1, input_dim = optimal_param['dim_layer'],
+    model.add(Dropout(optimal_param['dropout']))
+    model.add(Dense(output_dim = 1,
                     activation = optimal_param['activation_layer_2']))
     model.compile(optimizer = optimal_param['optimizer'],loss = 'binary_crossentropy',metrics = ['accuracy'])
-    model.fit(train_X, train_Y.as_matrix(), nb_epoch = 5, batch_size = 128)
+    model.fit(train_X, train_Y, nb_epoch = 15, batch_size = 128,verbose=1)
+    cross = StandardScaler().fit_transform(cross_val_X)
+    x = model.predict(cross)
+    
     
     return model
 
@@ -984,7 +997,7 @@ def objective_stack(space_gradient_boosting):
     
     #Declared train_X as a global variable, unable to pass it as a parameter
     #Performing cross validation.
-    skf=StratifiedKFold(stack_Y, n_folds=3)
+    skf=StratifiedKFold(stack_Y, n_folds=3,random_state=0)
     for train_index, cross_val_index in skf:
         
         xgb_train_X, xgb_cross_val_X = stack_X.iloc[train_index],stack_X.iloc[cross_val_index]
@@ -1051,7 +1064,7 @@ def objective_blend(space_gradient_boosting):
     
     #Declared train_X as a global variable, unable to pass it as a parameter
     #Performing cross validation.
-    skf=StratifiedKFold(stack_Y, n_folds=3)
+    skf=StratifiedKFold(stack_Y, n_folds=3,random_state=0)
     for train_index, cross_val_index in skf:
         
         xgb_train_X, xgb_cross_val_X = blend_X.iloc[train_index],blend_X.iloc[cross_val_index]
@@ -1118,7 +1131,7 @@ cross_val_second_level_model = [cross_val_stack,cross_val_blend,weighted_average
 def train_cross_val_base_models():
     
     #Cross Validation using Stratified K Fold
-    train, cross_val = train_test_split(Data, test_size = 0.5, stratify = Data['y'])
+    train, cross_val = train_test_split(Data, test_size = 0.5, stratify = Data['y'],random_state=0)
     
     #Training the base models, and calculating AUC on the cross validation data.
     #Selecting the data (Traing Data & Cross Validation Data)
@@ -1131,8 +1144,6 @@ def train_cross_val_base_models():
     global cross_val_Y
     cross_val_Y = cross_val['y']
     cross_val_X = cross_val.drop(['y'],axis=1)
-    
-
     
     global gradient_boosting
     global multi_layer_perceptron
@@ -1373,56 +1384,56 @@ def test_data():
 # In[68]:
 
 print('ONE HOT ENCODING\n')
-sample_generation_one_hot_encode(1)
+get_ipython().magic('timeit -n1 -r1 sample_generation_one_hot_encode(1)')
 print('\nEND\n')
 
 
 # In[69]:
 
 print('LABEL ENCODING\n')
-sample_generation_label_encode(1)
+get_ipython().magic('timeit -n1 -r1 sample_generation_label_encode(1)')
 print('\nEND\n')
 
 
 # In[70]:
 
 print('BINARY ENCODING\n')
-sample_generation_binary_encode(1)
+get_ipython().magic('timeit -n1 -r1 sample_generation_binary_encode(1)')
 print('\nEND\n')
 
 
 # In[71]:
 
 print('HASHING ENCODING\n')
-sample_generation_hashing_encode(1)
+get_ipython().magic('timeit -n1 -r1 sample_generation_hashing_encode(1)')
 print('\nEND\n')
 
 
 # In[72]:
 
 print('BACKWARD DIFFERENCE ENCODING\n')
-sample_generation_backward_difference_encode(1)
+get_ipython().magic('timeit -n1 -r1 sample_generation_backward_difference_encode(1)')
 print('\nEND\n')
 
 
 # In[73]:
 
 print('HELMERT ENCODING\n')
-sample_generation_helmert_encode(1)
+get_ipython().magic('timeit -n1 -r1 sample_generation_helmert_encode(1)')
 print('\nEND\n')
 
 
 # In[74]:
 
 print('SUM ENCODING\n')
-sample_generation_sum_encode(1)
+get_ipython().magic('timeit -n1 -r1 sample_generation_sum_encode(1)')
 print('\nEND\n')
 
 
 # In[75]:
 
 print('POLYNOMIAL ENCODING\n')
-sample_generation_polynomial_encode(1)
+get_ipython().magic('timeit -n1 -r1 sample_generation_polynomial_encode(1)')
 print('\nEND\n')
 
 
