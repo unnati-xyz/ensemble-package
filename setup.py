@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
   name = 'ensemble',
   packages = ['ensemble'], # this must be the same as the name above
-  version = '0.1',
+  version = '0.2',
   description = 'A package for ensembling of machine learning models',
   author = 'Prajwal Kailas',
   author_email = 'prajwal967@gmail.com',
