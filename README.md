@@ -9,38 +9,36 @@ Once the base models have been trained the user can select which ensembling tech
 # Installation
 
 [ **pip install ensemble** ]
-------------------------
 
-Dependecies
------------
+*Dependecies*
 
-*functools
-*numpy
-*sklearn
-*keras
-*xgboost [github link](https://github.com/dmlc/xgboost)
-*joblib [github link](https://github.com/joblib/joblib)
-*hyperopt [github link](https://github.com/hyperopt/hyperopt)
-*category_encoders [github link](https://github.com/wdm0006/categorical_encoding)
+* functools.
+* numpy.
+* sklearn.
+* keras.
+* xgboost [github link](https://github.com/dmlc/xgboost).
+* joblib [github link](https://github.com/joblib/joblib).
+* hyperopt [github link](https://github.com/hyperopt/hyperopt).
+* category_encoders [github link](https://github.com/wdm0006/categorical_encoding).
 
 # Base Models
 
-*Linear Regression
-*Gradient Boosting (XGBoost) 
-*Random Forest Classifier
-*Decision Tree
-*Logistic Regression
+* Linear Regression.
+* Gradient Boosting (XGBoost). 
+* Random Forest Classifier.
+* Decision Tree.
+* Logistic Regression.
 
 # Ensemble Models
 
-*Blending
-*Stacking
-*Weighted Average
+* Blending.
+* Stacking.
+* Weighted Average.
 
 # Key Features
 
-*The option to perform hyper parameter optimisation for any of the models (hyperopt and gridsearch).
-*Running the models in parallel during training and testing (joblib).
+* The option to perform hyper parameter optimisation for any of the models (hyperopt and gridsearch).
+* Running the models in parallel during training and testing (joblib).
 
 # License
 
