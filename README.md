@@ -21,6 +21,10 @@ Once the base models have been trained the user can select which ensembling tech
 * hyperopt [github link](https://github.com/hyperopt/hyperopt).
 * category_encoders [github link](https://github.com/wdm0006/categorical_encoding).
 
+#Documentation
+
+The documentation for the package is hosted [here](http://pythonhosted.org/ensemble/)
+
 # Base Models
 
 * Linear Regression.

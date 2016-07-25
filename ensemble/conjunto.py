@@ -1059,6 +1059,11 @@ def train_ensemble_models(stack_model_list = [], stack_parameters_list = [], ble
     #Analogous to the base_model_list
     global ensmeble_model_list
     ensmeble_model_list = list()
+
+    train_stack_model_list = list() 
+    predict_stack_model_list = list()
+    train_blend_model_list = list()
+    predict_blend_model_list = list()
     
     #The list will be used to train the ensemble models, while using joblib's parallel
     train_second_level_models = list() 
