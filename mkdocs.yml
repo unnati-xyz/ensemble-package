@@ -1,0 +1,5 @@
+site_name: Ensemble Package
+pages:
+- Documentation: index.md
+- About: about.md
+theme: readthedocs
