@@ -9,7 +9,7 @@ from ensemble.conjunto import parameter_set_logistic_regression
 from ensemble.conjunto import train_base_models
 from ensemble.conjunto import assign_weights
 from ensemble.conjunto import train_ensemble_models
-from ensemble.conjunto import test_data
+from ensemble.conjunto import test_models
 from ensemble.conjunto import get_base_models
 from ensemble.conjunto import get_ensemble_models
 
