@@ -1,5 +1,6 @@
 
 from ensemble.conjunto import data_import
+from ensemble.conjunto import metric_set
 from ensemble.conjunto import parameter_set_gradient_boosting
 from ensemble.conjunto import parameter_set_decision_tree
 from ensemble.conjunto import parameter_set_random_forest

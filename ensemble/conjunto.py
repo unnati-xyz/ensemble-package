@@ -1338,17 +1338,4 @@ def print_metric(model,metric_score):
     print (model,'\n',metric_score)
 
 
-# In[54]:
-
-Data = pd.read_csv('/home/prajwal/Desktop/bank-additional/bank-additional-full.csv',delimiter=';',header=0)
-
-
-# In[55]:
-
-get_ipython().run_cell_magic('time', '', "\ndata_test = data_import(Data,label_output='y')\nmetric_set('roc_auc_score')\nparam_gb_1 = parameter_set_gradient_boosting(eval_metric = ['auc'], objective = ['binary:logistic'])\nparam_dt = parameter_set_decision_tree(max_depth = [6])\nparam_rf = parameter_set_random_forest()\nparam_lr = parameter_set_linear_regression()\nparam_l2 = parameter_set_logistic_regression()\nparam_l1 = parameter_set_logistic_regression(penalty = ['l1'])\nparam_gb_2 = parameter_set_gradient_boosting(eval_metric = ['auc'], objective = ['binary:logistic'],\n                                                booster=['gblinear'], eta = [0.1,0.3,0.5,0.7],\n                                               hyper_parameter_optimisation = True)\n\ntrain_base_models(['gradient_boosting','decision_tree',\\\n                                     'random_forest','linear_regression','logistic_regression',\\\n                                     'logistic_regression','gradient_boosting'],[param_gb_1, param_dt, param_rf\n                                                                                 ,param_lr, param_l2, param_l1,\n                                                                                 param_gb_2])\n\nweights = assign_weights(weights = 'default', hyper_parameter_optimisation = True)\n\n\ntrain_ensemble_models(['linear_regression', 'gradient_boosting'], [param_lr, param_gb_1],\n                      ['gradient_boosting','logistic_regression'],[param_gb_1,param_l2], \n                      perform_weighted_average = True, weights_list = weights)\n\ntest_models(data_test)")
-
-
-# In[ ]:
-
-
 

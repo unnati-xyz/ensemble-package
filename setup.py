@@ -4,12 +4,12 @@ from setuptools import setup
 
 setup(
     name = "ensemble",
-    version = "0.3",
+    version = "0.3.2",
     author = "Prajwal Kailas",
     author_email = "prajwal967@gmail.com",
     description = ("A package for ensembling of machine learning models"),
     license = "MIT",
-    keywords = "example documentation tutorial",
+    keywords = "Ensemble",
     url = "https://github.com/unnati-xyz/ensemble-package",
     packages=['ensemble'],
     classifiers=[]
