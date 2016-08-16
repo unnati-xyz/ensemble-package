@@ -5,7 +5,6 @@
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn import datasets, linear_model, preprocessing, grid_search
 from sklearn.preprocessing import Imputer, PolynomialFeatures, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
@@ -18,7 +17,7 @@ from keras.layers import Dense, Activation, Dropout
 from keras.models import Sequential
 from keras.regularizers import l2, activity_l2
 import xgboost as xgb
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, average_precision_score, f1_score, log_loss, accuracy_score
 from sklearn.cross_validation import train_test_split
 from joblib import Parallel, delayed
 from sklearn.pipeline import Pipeline
@@ -30,11 +29,23 @@ from functools import partial
 np.random.seed(1338)
 
 
-# # Getting the data
-
 # In[2]:
 
-def data_import(data, label_output, encode = 'label', split = True, stratify = True, split_size = 0.1):
+def metric_set(metric):
+    
+    global metric_score
+    global metric_grid_search
+    metric_functions = {'roc_auc_score' : [roc_auc_score, 'roc_auc'], 'average_precision_score' :                         [average_precision_score, 'average_precision'], 'f1_score' : [f1_score, 'f1'],                        'log_loss' : [log_loss, 'log_loss'], 'accuracy_score' : [accuracy_score, 'accuracy']}
+    
+    metric_score = metric_functions[metric][0]
+    metric_grid_search = metric_functions[metric][1]
+
+
+# # Getting the data
+
+# In[3]:
+
+def data_import(data, label_output, encode = None, split = True, stratify = True, split_size = 0.3):
     
     global Data
     Data = data
@@ -47,27 +58,38 @@ def data_import(data, label_output, encode = 'label', split = True, stratify = T
     
     #Converting string categorical variables to integer categorical variables.
     label_encode(names.columns.tolist())
-
-    columns = names.drop([target_label],axis=1).columns.tolist()
     
+    if(target_label in names):
+        
+        columns = names.drop([target_label],axis=1).columns.tolist()
+        
+    else:
+        
+        columns = names
+        
     #Data will be encoded to the form that the user enters
     encoding = {'binary':binary_encode,'hashing':hashing_encode,'backward_difference'
                :backward_difference_encode,'helmert':helmert_encode,'polynomial':
                polynomial_encode,'sum':sum_encode,'label':label_encode}
-    #Once the above encoding techniques has been selected by the user, the appropriate encoding function is called
-    encoding[encode](columns)
     
+    if(encode != None):
+        
+        #Once the above encoding techniques has been selected by the user, the appropriate encoding function is called
+        encoding[encode](columns)
+        
     #This function intializes the dataframes that will be used later in the program
     #data_initialize()
     
     #Splitting the data into to train and test sets, according to user preference
     if(split == True):
-        data_split(stratify,split_size)
+        
+        test_data = data_split(stratify,split_size)
+        return test_data
 
 
 # # Data for ensembling (Training)
 
-# In[3]:
+# In[4]:
 
 #The dataframes will be used in the training phase of the ensemble models
 def second_level_train_data(predict_list, cross_val_X, cross_val_Y):
@@ -96,7 +118,7 @@ def second_level_train_data(predict_list, cross_val_X, cross_val_Y):
 
 # # Data for ensembling (Testing)
 
-# In[4]:
+# In[5]:
 
 #The dataframes will be used in the testing phase of the ensemble models
 def second_level_test_data(predict_list, test_X, test_Y):
@@ -125,7 +147,7 @@ def second_level_test_data(predict_list, test_X, test_Y):
 
 # # Label Encoding
 
-# In[5]:
+# In[6]:
 
 #Function that encodes the string values to numerical values.
 def label_encode(column_names):
@@ -138,7 +160,7 @@ def label_encode(column_names):
 
 # # Binary Encoding
 
-# In[6]:
+# In[7]:
 
 def binary_encode(column_names):
     
@@ -150,7 +172,7 @@ def binary_encode(column_names):
 
 # # Hashing Encoding
 
-# In[7]:
+# In[8]:
 
 def hashing_encode(column_names):
     
@@ -162,7 +184,7 @@ def hashing_encode(column_names):
 
 # # Backward Difference Encoding
 
-# In[8]:
+# In[9]:
 
 def backward_difference_encode(column_names):
     
@@ -174,7 +196,7 @@ def backward_difference_encode(column_names):
 
 # # Helmert Encoding
 
-# In[9]:
+# In[10]:
 
 def helmert_encode(column_names):
     
@@ -186,7 +208,7 @@ def helmert_encode(column_names):
 
 # # Sum Encoding
 
-# In[10]:
+# In[11]:
 
 def sum_encode(column_names):
     
@@ -198,7 +220,7 @@ def sum_encode(column_names):
 
 # # Polynomial Encoding
 
-# In[11]:
+# In[12]:
 
 def polynomial_encode(column_names):
     
@@ -208,13 +230,12 @@ def polynomial_encode(column_names):
     Data = encoder.fit_transform(Data)
 
 
-# In[12]:
+# In[13]:
 
 #Splitting the data into training and testing datasets
 def data_split(stratify, split_size):
     
     global Data
-    global test
     
     #Stratified Split
     if(stratify == True):
@@ -223,9 +244,11 @@ def data_split(stratify, split_size):
     #Random Split
     else:
         Data, test = train_test_split(Data, test_size = split_size,random_state = 0) 
+        
+    return test
 
 
-# In[13]:
+# In[14]:
 
 #This function is used to convert the predictions of the base models (numpy array) into a DataFrame.
 def build_data_frame(data):
@@ -236,7 +259,7 @@ def build_data_frame(data):
 
 # # Gradient Boosting (XGBoost)
 
-# In[14]:
+# In[15]:
 
 #Trains the Gradient Boosting model.
 def train_gradient_boosting(train_X, train_Y, parameter_gradient_boosting):
@@ -256,10 +279,10 @@ def train_gradient_boosting(train_X, train_Y, parameter_gradient_boosting):
         return model  
 
 
-# In[15]:
+# In[16]:
 
 #Defining the parameters for the XGBoost (Gradient Boosting) Algorithm.
-def parameter_set_gradient_boosting(hyper_parameter_optimisation = False, eval_metric = None, booster = ['gbtree'],                                    silent = [0], eta = [0.3], gamma = [0], max_depth = [6],                                    min_child_weight = [1], max_delta_step = [0], subsample = [1],                                    colsample_bytree = [1], colsample_bylevel = [1], lambda_xgb = [1], alpha = [0],                                    tree_method = ['auto'], sketch_eps = [0.03], scale_pos_weight = [0],                                    lambda_bias = [0], objective = ['reg:linear'], base_score = [0.5]):
+def parameter_set_gradient_boosting(hyper_parameter_optimisation = False, eval_metric = None, booster = ['gbtree'],                                    silent = [0], eta = [0.3], gamma = [0], max_depth = [6],                                    min_child_weight = [1], max_delta_step = [0], subsample = [1],                                    colsample_bytree = [1], colsample_bylevel = [1], lambda_xgb = [1], alpha = [0],                                    tree_method = ['auto'], sketch_eps = [0.03], scale_pos_weight = [0],                                    lambda_bias = [0], objective = ['reg:linear'], base_score = [0.5],                                    num_class = None):
 
     parameter_gradient_boosting = {}
     #This variable will be used to check if the user wants to perform hyper parameter optimisation.
@@ -268,6 +291,10 @@ def parameter_set_gradient_boosting(hyper_parameter_optimisation = False, eval_m
     #Setting objective and seed
     parameter_gradient_boosting['objective'] = objective[0]
     parameter_gradient_boosting['seed'] = 0
+    
+    if(num_class != None):
+        
+        parameter_gradient_boosting['num_class'] = num_class
     
     #If hyper parameter optimisation is false, we unlist the default values and/or the values that the user enters 
     #in the form of a list. Values have to be entered by the user in the form of a list, for hyper parameter 
@@ -320,7 +347,7 @@ def parameter_set_gradient_boosting(hyper_parameter_optimisation = False, eval_m
     return parameter_gradient_boosting
 
 
-# In[16]:
+# In[17]:
 
 #Using the loss values, this function picks the optimum parameter values. These values will be used 
 #for training the model
@@ -353,7 +380,7 @@ def gradient_boosting_parameter_optimisation(train_X, train_Y, parameter_gradien
     return model
 
 
-# In[17]:
+# In[18]:
 
 #This function calculates the loss for different parameter values and is used to determine the most optimum 
 #parameter values
@@ -381,7 +408,7 @@ def objective_gradient_boosting(space_gradient_boosting, data_X, data_Y, paramet
     param['tree_method'] = space_gradient_boosting['tree_method']
     
     model = xgb.Booster()
-    auc_list = list()
+    metric_list = list()
 
     #Performing cross validation.
     skf=StratifiedKFold(data_Y, n_folds=3,random_state=0)
@@ -394,15 +421,26 @@ def objective_gradient_boosting(space_gradient_boosting, data_X, data_Y, paramet
         dtrain = xgb.DMatrix(xgb_train_X, label = xgb_train_Y)
         model = xgb.train(param, dtrain)
         
-        predict = model.predict(xgb.DMatrix(xgb_cross_val_X, label = xgb_cross_val_Y))
-        auc_list.append(roc_auc_score(xgb_cross_val_Y,predict))
+        predicted_values = model.predict(xgb.DMatrix(xgb_cross_val_X, label = xgb_cross_val_Y))
+        
+        if(metric_grid_search in ['f1','log_loss','accuracy']):
+            
+            predictions = predicted_values >= 0.5
+            predictions.astype(int)
+            metric_list.append(metric_score(xgb_cross_val_Y,predictions))
+            
+        else :
+            
+            metric_list.append(metric_score(xgb_cross_val_Y,predicted_values))
+            
+        
     
     #Calculating the AUC and returning the loss, which will be minimised by selecting the optimum parameters.
-    auc = np.mean(auc_list)
-    return{'loss':1-auc, 'status': STATUS_OK }
+    metric = np.mean(metric_list)
+    return{'loss':1-metric, 'status': STATUS_OK }
 
 
-# In[18]:
+# In[19]:
 
 #Assigning the values of the XGBoost parameters that need to be checked, for minimizing the objective (loss).
 #The values that give the most optimum results will be picked to train the model.
@@ -446,39 +484,50 @@ def assign_space_gradient_boosting(parameter_gradient_boosting):
     return space_gradient_boosting
 
 
-# In[19]:
+# In[20]:
 
 def predict_gradient_boosting(data_X, data_Y, gradient_boosting):
     
     predicted_values = gradient_boosting.predict(xgb.DMatrix(data_X, label = data_Y))
-    auc = roc_auc_score(data_Y, predicted_values)
-    return [auc,predicted_values]
+            
+    metric = metric_score(data_Y,predicted_values)
+
+    return [metric,predicted_values]
 
 
 # # Decision Tree
 
-# In[20]:
+# In[21]:
 
 #Trains the Decision Tree model. Performing a grid search to select the optimal parameter values
 def train_decision_tree(train_X, train_Y, parameters_decision_tree):
     
     decision_tree_model = DecisionTreeClassifier()      
-    model_gs = grid_search.GridSearchCV(decision_tree_model, parameters_decision_tree, scoring = 'roc_auc')
+    model_gs = grid_search.GridSearchCV(decision_tree_model, parameters_decision_tree, scoring = metric_grid_search)
     model_gs.fit(train_X,train_Y)
     return model_gs
 
 
-# In[21]:
+# In[22]:
 
 #Predicts the output on a set of data, the built model is passed as a parameter, which is used to predict
 def predict_decision_tree(data_X, data_Y, decision_tree):
     
     predicted_values = decision_tree.predict_proba(data_X)[:, 1]
-    auc = roc_auc_score(data_Y, predicted_values)
-    return [auc,predicted_values]
+    
+    if(metric_grid_search in ['f1','log_loss','accuracy']):
+        
+        predictions = decision_tree.predict(data_X)
+        metric = metric_score(data_Y, predictions)
+        
+    else :
+        
+        metric = metric_score(data_Y, predicted_values)
+    
+    return [metric,predicted_values]
 
 
-# In[22]:
+# In[23]:
 
 def parameter_set_decision_tree(criterion = ['gini'], splitter = ['best'], max_depth = [None],                                min_samples_split = [2], min_samples_leaf = [1], min_weight_fraction_leaf = [0.0],                                max_features = [None], random_state = [None], max_leaf_nodes = [None],                                class_weight = [None], presort = [False]):
     
@@ -500,28 +549,37 @@ def parameter_set_decision_tree(criterion = ['gini'], splitter = ['best'], max_d
 
 # # Random Forest
 
-# In[23]:
+# In[24]:
 
 #Trains the Random Forest model. Performing a grid search to select the optimal parameter values
 def train_random_forest(train_X, train_Y, parameters_random_forest):
     
     random_forest_model = RandomForestClassifier()
-    model_gs = grid_search.GridSearchCV(random_forest_model, parameters_random_forest, scoring = 'roc_auc')
+    model_gs = grid_search.GridSearchCV(random_forest_model, parameters_random_forest, scoring = metric_grid_search)
     model_gs.fit(train_X,train_Y)
     return model_gs
 
 
-# In[24]:
+# In[25]:
 
 #Predicts the output on a set of data, the built model is passed as a parameter, which is used to predict
 def predict_random_forest(data_X, data_Y, random_forest):
     
     predicted_values = random_forest.predict_proba(data_X)[:, 1]
-    auc = roc_auc_score(data_Y, predicted_values)
-    return [auc,predicted_values]
+    
+    if(metric_grid_search in ['f1','log_loss','accuracy']):
+        
+        predictions = random_forest.predict(data_X)
+        metric = metric_score(data_Y, predictions)
+        
+    else :
+        
+        metric = metric_score(data_Y, predicted_values)
+    
+    return [metric,predicted_values]
 
 
-# In[25]:
+# In[26]:
 
 #Parameters for random forest. To perform hyper parameter optimisation a list of multiple elements can be entered
 #and the optimal value in that list will be picked using grid search
@@ -547,30 +605,40 @@ def parameter_set_random_forest(n_estimators = [10], criterion = ['gini'], max_d
 
 # # Linear Regression
 
-# In[26]:
+# In[27]:
 
 #Trains the Linear Regression model. Performing a grid search to select the optimal parameter values
 def train_linear_regression(train_X, train_Y, parameters_linear_regression):
     
     linear_regression_model = linear_model.LinearRegression()
     train_X=StandardScaler().fit_transform(train_X)
-    model_gs = grid_search.GridSearchCV(linear_regression_model, parameters_linear_regression, scoring = 'roc_auc')
+    model_gs = grid_search.GridSearchCV(linear_regression_model, parameters_linear_regression,                                        scoring = metric_grid_search)
     model_gs.fit(train_X,train_Y)
     return model_gs
 
 
-# In[27]:
+# In[28]:
 
 #Predicts the output on a set of data, the built model is passed as a parameter, which is used to predict
 def predict_linear_regression(data_X, data_Y, linear_regression):
     
     data_X = StandardScaler().fit_transform(data_X)
     predicted_values = linear_regression.predict(data_X)
-    auc = roc_auc_score(data_Y, predicted_values)
-    return [auc,predicted_values]
+    
+    if(metric_grid_search in ['f1','log_loss','accuracy']):
+        
+        predictions = predicted_values >= 0.5
+        predictions.astype(int)
+        metric = metric_score(data_Y, predictions)
+        
+    else :
+        
+        metric = metric_score(data_Y, predicted_values)
+    
+    return [metric,predicted_values]
 
 
-# In[28]:
+# In[29]:
 
 #Parameters for random forest. To perform hyper parameter optimisation a list of multiple elements can be entered
 #and the optimal value in that list will be picked using grid search
@@ -585,30 +653,39 @@ def parameter_set_linear_regression(fit_intercept = [True], normalize = [False],
 
 # # Logistic Regression
 
-# In[29]:
+# In[30]:
 
 #Trains the Logistic Regression  model. Performing a grid search to select the optimal parameter values
 def train_logistic_regression(train_X, train_Y, parameters_logistic_regression):
 
     logistic_regression_model = linear_model.LogisticRegression()
     train_X=StandardScaler().fit_transform(train_X)
-    model_gs = grid_search.GridSearchCV(logistic_regression_model, parameters_logistic_regression,                                        scoring = 'roc_auc')
+    model_gs = grid_search.GridSearchCV(logistic_regression_model, parameters_logistic_regression,                                        scoring = metric_grid_search)
     model_gs.fit(train_X,train_Y)
     return model_gs
 
 
-# In[30]:
+# In[31]:
 
 #Predicts the output on a set of data, the built model is passed as a parameter, which is used to predict
 def predict_logistic_regression(data_X, data_Y, logistic_regression):
     
     data_X = StandardScaler().fit_transform(data_X)
-    predicted_values = logistic_regression.predict_proba(data_X)[:,1]
-    auc = roc_auc_score(data_Y, predicted_values)
-    return [auc,predicted_values]
+    predicted_values = logistic_regression.predict_proba(data_X)[:, 1]
+    
+    if(metric_grid_search in ['f1','log_loss','accuracy']):
+        
+        predictions = logistic_regression.predict(data_X)
+        metric = metric_score(data_Y, predictions)
+        
+    else :
+        
+        metric = metric_score(data_Y, predicted_values)
+    
+    return [metric,predicted_values]
 
 
-# In[31]:
+# In[32]:
 
 #Parameters for random forest. To perform hyper parameter optimisation a list of multiple elements can be entered
 #And the optimal value in that list will be picked using grid search
@@ -632,7 +709,7 @@ def parameter_set_logistic_regression(penalty = ['l2'], dual = [False], tol = [0
 
 # # Stacking
 
-# In[32]:
+# In[33]:
 
 #The stacked ensmeble will be trained by using one or more of the base model algorithms
 #The function of the base model algorithm that will be used to train will be passed as the
@@ -644,7 +721,7 @@ def train_stack(data_X, data_Y, model_function, model_parameters):
     return model
 
 
-# In[33]:
+# In[34]:
 
 #Predicts the output on a set of stacked data, after the stacked model has been built by using a base model
 #algorithm, hence we need the predict funcction of that base model algorithm to get the predictions
@@ -658,7 +735,7 @@ def predict_stack(data_X, data_Y, predict_function, model):
 
 # # Blending
 
-# In[34]:
+# In[35]:
 
 #The blending ensmeble will be trained by using one or more of the base model algorithms
 #The function of the base model algorithm that will be used to train will be passed as the
@@ -670,7 +747,7 @@ def train_blend(data_X, data_Y, model_function, model_parameters):
     return model
 
 
-# In[35]:
+# In[36]:
 
 #Predicts the output on a set of blended data, after the blending model has been built by using a base model
 #algorithm, hence we need the predict function of that base model algorithm to get the predictions
@@ -684,7 +761,7 @@ def predict_blend(data_X, data_Y, predict_function, model):
 
 # # Weighted Average
 
-# In[36]:
+# In[37]:
 
 #Perfroms weighted average of the predictions of the base models. The function that calculates the optimum 
 # combination of weights is passsed as the get_weight_function parameter
@@ -722,7 +799,7 @@ def weighted_average(data_X, data_Y, hyper_parameter_optitmisation, weight_list)
     return [auc,weighted_avg_predictions,weight]  
 
 
-# In[37]:
+# In[38]:
 
 #Function that finds the best possible combination of weights for performing the weighted predictions.
 def get_optimized_weights(weight_list, X, Y):
@@ -744,7 +821,7 @@ def get_optimized_weights(weight_list, X, Y):
     return best_weights
 
 
-# In[38]:
+# In[39]:
 
 #Defining the objective. Appropriate weights need to be calculated to minimize the loss.
 def objective_weighted_average(space, data_X, data_Y):
@@ -761,7 +838,7 @@ def objective_weighted_average(space, data_X, data_Y):
     return{'loss':1-auc, 'status': STATUS_OK }
 
 
-# In[39]:
+# In[40]:
 
 #Assigning the weights that need to be checked, for minimizing the objective (Loss)
 def assign_space_weighted_average(weight_list):
@@ -779,7 +856,7 @@ def assign_space_weighted_average(weight_list):
     return space
 
 
-# In[40]:
+# In[41]:
 
 #The user can either use the default weights or provide their own list of values.
 def assign_weights(weights = 'default',hyper_parameter_optimisation = False):
@@ -816,7 +893,7 @@ def assign_weights(weights = 'default',hyper_parameter_optimisation = False):
 
 # # Setup for training and computing predictions for the models
 
-# In[41]:
+# In[42]:
 
 #Constructing a list (train_model_list) that contains a tuple for each base model, the tuple contains the name of 
 #the function that trains the base model, and the paramters for training the base model. 
@@ -866,7 +943,7 @@ def construct_model_parameter_list(model_list, parameters_list, stack = False, b
     return [train_model_list,predict_model_list]
 
 
-# In[42]:
+# In[43]:
 
 #This function computes a list where each element is a tuple that contains the predict function of the base model
 #along with the corresponding base model object. This is done so that the base model object can be passed to the
@@ -884,7 +961,7 @@ def construct_model_predict_function_list(model_list, models,predict_model_list)
 
 # # Training base models
 
-# In[43]:
+# In[44]:
 
 #This function calls the respective training and predic functions of the base models.
 def train_base_models(model_list, parameters_list, save_models = False):
@@ -936,7 +1013,7 @@ def train_base_models(model_list, parameters_list, save_models = False):
 
 # # Predictions of base models
 
-# In[44]:
+# In[45]:
 
 def predict_base_models(data_X, data_Y,mode):
     
@@ -1012,7 +1089,7 @@ def predict_base_models(data_X, data_Y,mode):
 
 # # Saving  models
 
-# In[45]:
+# In[46]:
 
 #The trained base model objects can be saved and used later for any other purpose. The models asre save using 
 #joblib's dump. The models are named base_model1, base_model2..so on depending on the order entered by the user
@@ -1027,7 +1104,7 @@ def save_base_models(models):
         model_index = model_index + 1
 
 
-# In[46]:
+# In[47]:
 
 #This function will return the trained base model objects once they have been saved in the function above. All the 
 #trained models are returned in a list called models
@@ -1043,7 +1120,7 @@ def get_base_models():
 
 # # Training the ensemble/second level models
 
-# In[47]:
+# In[48]:
 
 #Training the second level models parallely
 def train_ensemble_models(stack_model_list = [], stack_parameters_list = [], blend_model_list = [],                              blend_parameters_list = [], perform_weighted_average = None, weights_list = None,
@@ -1059,7 +1136,7 @@ def train_ensemble_models(stack_model_list = [], stack_parameters_list = [], ble
     #Analogous to the base_model_list
     global ensmeble_model_list
     ensmeble_model_list = list()
-
+    
     train_stack_model_list = list() 
     predict_stack_model_list = list()
     train_blend_model_list = list()
@@ -1155,7 +1232,7 @@ def train_ensemble_models(stack_model_list = [], stack_parameters_list = [], ble
 
 # # Prediction of ensemble models
 
-# In[48]:
+# In[49]:
 
 def predict_ensemble_models(data_X, data_Y):
     
@@ -1209,7 +1286,7 @@ def predict_ensemble_models(data_X, data_Y):
                 print_metric(ensemble + " " + model,model_metric[model])
 
 
-# In[49]:
+# In[50]:
 
 #The trained ensmeble model objects can be saved and used later for any other purpose. The models asre save using 
 #joblib's dump. The models are named ensmeble_model1, emnsmeble_model2..so on depending on the order entered by 
@@ -1224,7 +1301,7 @@ def save_ensemble_models(models):
         model_index = model_index + 1
 
 
-# In[50]:
+# In[51]:
 
 #This function will return the trained base model objects once they have been saved in the function above. All the 
 #trained models are returned in a list called models
@@ -1238,25 +1315,40 @@ def get_ensemble_models():
     return models
 
 
-# In[51]:
+# In[52]:
 
-def test_data():
+def test_models(test_data):
     
     print('\nTESTING PHASE\n')
     
     #Training the base models, and calculating AUC on the test data.
     #Selecting the data (Test Data)
-    test_Y = test[target_label]
-    test_X = test.drop([target_label],axis=1)
+    test_Y = test_data[target_label]
+    test_X = test_data.drop([target_label],axis=1)
     
     predict_base_models(test_X,test_Y,mode='test')
     predict_ensemble_models(test_stack_X,test_stack_Y)
 
 
-# In[52]:
+# In[53]:
 
 def print_metric(model,metric_score):
  
     #Printing the metric score for the corresponding model.
     print (model,'\n',metric_score)
+
+
+# In[54]:
+
+Data = pd.read_csv('/home/prajwal/Desktop/bank-additional/bank-additional-full.csv',delimiter=';',header=0)
+
+
+# In[55]:
+
+get_ipython().run_cell_magic('time', '', "\ndata_test = data_import(Data,label_output='y')\nmetric_set('roc_auc_score')\nparam_gb_1 = parameter_set_gradient_boosting(eval_metric = ['auc'], objective = ['binary:logistic'])\nparam_dt = parameter_set_decision_tree(max_depth = [6])\nparam_rf = parameter_set_random_forest()\nparam_lr = parameter_set_linear_regression()\nparam_l2 = parameter_set_logistic_regression()\nparam_l1 = parameter_set_logistic_regression(penalty = ['l1'])\nparam_gb_2 = parameter_set_gradient_boosting(eval_metric = ['auc'], objective = ['binary:logistic'],\n                                                booster=['gblinear'], eta = [0.1,0.3,0.5,0.7],\n                                               hyper_parameter_optimisation = True)\n\ntrain_base_models(['gradient_boosting','decision_tree',\\\n                                     'random_forest','linear_regression','logistic_regression',\\\n                                     'logistic_regression','gradient_boosting'],[param_gb_1, param_dt, param_rf\n                                                                                 ,param_lr, param_l2, param_l1,\n                                                                                 param_gb_2])\n\nweights = assign_weights(weights = 'default', hyper_parameter_optimisation = True)\n\n\ntrain_ensemble_models(['linear_regression', 'gradient_boosting'], [param_lr, param_gb_1],\n                      ['gradient_boosting','logistic_regression'],[param_gb_1,param_l2], \n                      perform_weighted_average = True, weights_list = weights)\n\ntest_models(data_test)")
+
+
+# In[ ]:
+
+
 
