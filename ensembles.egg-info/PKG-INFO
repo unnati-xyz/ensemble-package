@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: ensembles
+Version: 0.1.2
+Summary: A package for ensembling of machine learning models
+Home-page: https://github.com/unnati-xyz/ensemble-package
+Author: Prajwal Kailas
+Author-email: prajwal967@gmail.com
+License: MIT
+Description: UNKNOWN
+Keywords: Ensemble
+Platform: UNKNOWN

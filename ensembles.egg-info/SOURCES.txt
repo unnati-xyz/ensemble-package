@@ -1,0 +1,8 @@
+setup.cfg
+setup.py
+ensembles/__init__.py
+ensembles/conjunto.py
+ensembles.egg-info/PKG-INFO
+ensembles.egg-info/SOURCES.txt
+ensembles.egg-info/dependency_links.txt
+ensembles.egg-info/top_level.txt
