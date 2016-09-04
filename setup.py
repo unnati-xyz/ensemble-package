@@ -3,8 +3,8 @@ import os
 from setuptools import setup
 
 setup(
-    name = "ensemble",
-    version = "0.3.3",
+    name = "ensembles",
+    version = "0.1",
     author = "Prajwal Kailas",
     author_email = "prajwal967@gmail.com",
     description = ("A package for ensembling of machine learning models"),
