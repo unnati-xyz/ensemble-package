@@ -8,7 +8,7 @@ Once the base models have been trained the user can select which ensembling tech
 
 # Installation
 
-[ **pip install ensemble** ]
+[ **pip install ensembles** ]
 
 *Dependecies*
 
