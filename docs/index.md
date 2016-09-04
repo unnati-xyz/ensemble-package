@@ -1,4 +1,4 @@
-# ENSEMBLE (pip install ensemble)
+# ENSEMBLE (pip install ensembles)
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
 **ensemble.data_import(data, label_output, encode = 'label', split = True, stratify = True, split_size = 0.1)**
