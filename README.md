@@ -24,7 +24,7 @@ Once the base models have been trained the user can select which ensembling tech
 #Documentation
 
 Changes are being made to some parts of the documentation.
-The documentation for the package is hosted [here](http://pythonhosted.org/ensemble/)
+The documentation for the package is hosted [here](http://pythonhosted.org/ensembles)
 
 # Base Models
 
