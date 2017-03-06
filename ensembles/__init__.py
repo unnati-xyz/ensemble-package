@@ -1,7 +1,9 @@
 
 from ensembles.conjunto import data_import
 from ensembles.conjunto import metric_set
+from ensembles.conjunto import set_no_of_layers
 from ensembles.conjunto import parameter_set_gradient_boosting
+from ensembles.conjunto import parameter_set_multi_layer_perceptron
 from ensembles.conjunto import parameter_set_decision_tree
 from ensembles.conjunto import parameter_set_random_forest
 from ensembles.conjunto import parameter_set_linear_regression
