@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name = "ensembles",
-    version = "0.1.3",
+    version = "0.1.4",
     author = "Prajwal Kailas",
     author_email = "prajwal967@gmail.com",
     description = ("A package for ensembling of machine learning models"),
@@ -13,9 +13,6 @@ setup(
     url = "https://github.com/unnati-xyz/ensemble-package",
     packages=['ensembles'],
     classifiers=['Development Status :: 3 - Alpha',
-
-    'Intended Audience :: Data Science/Machine Learning',
-    'Topic :: Machine Learning :: Ensemble Models',
 
      'License :: OSI Approved :: MIT License',
 
@@ -34,8 +31,6 @@ setup(
 	'sklearn',
 	'keras',
 	'joblib',
-	'hyperopt',
-	'functools',
-	]
+	'hyperopt']
 )
 
