@@ -806,7 +806,7 @@ def objective_multi_layer_perceptron(space_multi_layer_perceptron, data_X, data_
     
     global no_of_layers
     
-    #Gradient Boosting (XGBoost)
+    #Multi Layer Perceptron
     param = {}
     param['optimizer'] = parameter_multi_layer_perceptron['optimizer']
     
@@ -846,7 +846,7 @@ def objective_multi_layer_perceptron(space_multi_layer_perceptron, data_X, data_
             
             if(i == 0):
                 
-                model.add(Dense(output_dim = param['dim_layer'+str(i)],                                 input_dim = train_X.shape[1],                                 init = param['init_layer'+str(i)], 
+                model.add(Dense(output_dim = param['dim_layer'+str(i)],                                 input_dim = mlp_train_X.shape[1],                                 init = param['init_layer'+str(i)], 
                                 activation = param['activation_layer'+str(i)], \
                                 weights = param['weights'+str(i)], \
                                 W_regularizer = param['W_regularizer'+str(i)], \
@@ -861,7 +861,7 @@ def objective_multi_layer_perceptron(space_multi_layer_perceptron, data_X, data_
                     model.add(Dropout(param['dropout'+str(i)]))
                     
             elif(i == no_of_layers-1):
-                model.add(Dense(output_dim = 1,                                 input_dim = train_X.shape[1],                                 init = param['init_layer'+str(i)], 
+                model.add(Dense(output_dim = 1,                                 input_dim = mlp_train_X.shape[1],                                 init = param['init_layer'+str(i)], 
                                 activation = param['activation_layer'+str(i)], \
                                 weights = param['weights'+str(i)], \
                                 W_regularizer = param['W_regularizer'+str(i)], \
@@ -874,7 +874,7 @@ def objective_multi_layer_perceptron(space_multi_layer_perceptron, data_X, data_
                 
             else:
                 
-                model.add(Dense(output_dim = param['dim_layer'+str(i)],                                 input_dim = train_X.shape[1],                                 init = param['init_layer'+str(i)], 
+                model.add(Dense(output_dim = param['dim_layer'+str(i)],                                 input_dim = mlp_train_X.shape[1],                                 init = param['init_layer'+str(i)], 
                                 activation = param['activation_layer'+str(i)], \
                                 weights = param['weights'+str(i)], \
                                 W_regularizer = param['W_regularizer'+str(i)], \
