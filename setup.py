@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name = "ensembles",
-    version = "0.1.4",
+    version = "0.1.5",
     author = "Prajwal Kailas",
     author_email = "prajwal967@gmail.com",
     description = ("A package for ensembling of machine learning models"),
