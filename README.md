@@ -42,7 +42,7 @@ The documentation for the package is hosted [here](http://pythonhosted.org/ensem
 
 # Key Features
 
-* The option to perform hyper parameter optimisation for any of the models (hyperopt and gridsearch).
+* The option to perform hyper parameter optimisation for any of the models (hyperopt and gridsearch)
 * Running the models in parallel during training and testing (joblib).
 
 # License
