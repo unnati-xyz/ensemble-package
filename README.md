@@ -45,6 +45,10 @@ The documentation for the package is hosted [here](http://pythonhosted.org/ensem
 * The option to perform hyper parameter optimisation for any of the models (hyperopt and gridsearch)
 * Running the models in parallel during training and testing (joblib).
 
+# Examples
+
+* An explanation of how the package works is in the ensembles/examples folder
+
 # License
 
 MIT License
